@@ -1,44 +1,140 @@
-# NSE Cash-Equity Bot — Phase 2
+# NSE Cash-Equity Bot
 
-Python research stack for NSE cash equities: a Top 200 universe, a rule-based + AI selection filter, a single-stock backtester, and a Streamlit dashboard with Kite login. **No live orders are placed.** `PAPER_MODE` defaults to `true`.
+Personal research bot for **NSE cash stocks** (not F&O): picks a few names with rules + AI, backtests strategies, and connects to Zerodha Kite for data.
 
-This is not investment advice. Historical simulations are not live results.
+**Right now it does not place live trades.** `PAPER_MODE=true` by default. That is intentional.
 
-## What is built
+This is not investment advice.
 
-| Module | Status |
+---
+
+## How this works (short)
+
+```text
+NSE Top 200 stocks
+        ↓
+Rule-based indicators (SMA, EMA, RSI, ATR, volume)
+        ↓
+AI filter (OpenAI) — buy / hold / avoid
+        ↓
+Only if BOTH say buy → shortlist 3–4 stocks
+        ↓
+Backtest on history  OR  (later) paper / live orders
+```
+
+| Today | Later |
 | --- | --- |
-| 1. Stock universe + daily selection | Done |
-| 2. AI decision layer | Done |
-| 3. Backtest + cache | Done |
-| 6. Streamlit dashboard (backtest, selection, Kite login, live quotes) | Done |
-| 4. Risk gate `validate_order()` | **Phase 3** |
-| 5. Paper fills / live orders | **Phase 4** |
+| Backtest any stock | Risk gate on every order |
+| Daily AI stock picks | Paper trading (fake fills) |
+| Live quotes via Kite | Live orders only after you turn paper off + SEBI/Zerodha algo registration |
 
-## Kite Connect app form (the URLs it is asking for)
+---
 
-You do **not** need a public website. The Redirect URL is a page on **this PC** that Zerodha sends you back to after login.
+## User guide
 
-On [developers.kite.trade](https://developers.kite.trade) → **Create a new app**:
+### 1. Start the app (local)
 
-| Field | Paste this |
+```bash
+cd d:\NOT_BACKTEST
+.venv\Scripts\activate
+python -m trading_bot dashboard
+```
+
+Browser opens at `http://127.0.0.1:8501/`.
+
+**First time only**
+
+1. Tab **Setup & Kite** → paste OpenAI key + Kite API key + secret → **Save keys**
+2. Click **Connect Kite** → log in on Zerodha → you return to the dashboard connected  
+3. Do this again each trading day (Kite token expires ~6 AM IST)
+
+### 2. Start the app (Streamlit Cloud)
+
+1. Deploy from GitHub (`app.py` as main file) — see [Streamlit Cloud](#streamlit-community-cloud-deploy)
+2. Put keys in **Streamlit Secrets** (not in GitHub)
+3. Set Kite **Redirect URL** to your `https://….streamlit.app/` URL
+4. Open the app → **Connect Kite**
+
+### 3. How to run a backtest
+
+**In the dashboard (easiest)**
+
+1. Open tab **Backtest**
+2. Pick a stock (from Top 200)
+3. Pick a strategy:
+   - `rule_based` — indicators only  
+   - `ai_filtered` — indicators, then AI filter  
+   - `combined` — both must agree (recommended)
+4. Choose start date, end date, capital (₹)
+5. Leave “Use live OpenAI on each bar” **off** unless you want a slow/expensive run  
+6. Click **Run backtest**
+7. Read return %, win rate, max drawdown, equity curve, and commentary
+
+**From the command line**
+
+```bash
+python -m trading_bot backtest --symbol RELIANCE --strategy combined --start 2024-01-01 --end 2025-12-31 --capital 100000
+```
+
+Same run twice = instant (results cached in SQLite).
+
+### 4. Daily stock selection
+
+**Dashboard:** tab **Daily selection** → pick date → optional manual symbol → **Run selection**.
+
+**CLI:**
+
+```bash
+python -m trading_bot select --date 2026-08-14
+python -m trading_bot select --manual INFY
+```
+
+Rules:
+
+- 3–4 stocks total  
+- At least 3 from NSE Top 100 when enough buys exist  
+- At most 1 stock priced below ₹50  
+- Manual adds are tagged `manual` (separate from `ai_selected`)
+
+### 5. Live quotes
+
+Tab **Live quotes** after Kite is connected. Quotes only — **no orders**.
+
+### 6. When does it start trading?
+
+| Stage | Places orders? | How you turn it on |
+| --- | --- | --- |
+| **Now (Phase 2)** | **No** | App starts; you backtest and select stocks only |
+| Phase 3 | No | Risk gate built and unit-tested |
+| Phase 4 | Simulated only | Paper mode with live prices for weeks |
+| Phase 5–6 | Real money | You manually set `PAPER_MODE=false` **and** Zerodha/SEBI algo registration is done |
+
+**Starting the app does not start trading.**  
+There is no auto-buy when you open the dashboard or Streamlit Cloud.
+
+Live orders will only happen later if:
+
+1. Risk module is finished  
+2. Paper results look sane vs backtests  
+3. You explicitly set `PAPER_MODE=false` (never the default)  
+4. Your algo is registered with Zerodha under the SEBI framework  
+
+Until then: research, backtests, selection, quotes only.
+
+---
+
+## What each dashboard tab does
+
+| Tab | Purpose |
 | --- | --- |
-| **Type** | **Connect** (500 credits). Do **not** pick Personal — it has no historical data and no live quotes. |
-| **App name** | `sam_bot` |
-| **Zerodha Client ID** | `AR5852` |
-| **Redirect URL** | `http://127.0.0.1:8501/` |
-| **Postback URL** | Leave **empty** |
-| **Description** | Personal NSE cash-equity research and paper-trading bot. Historical data and quotes only. |
+| **Setup & Kite** | Keys, Kite login, Cloud redirect URL help |
+| **Backtest** | Simulate a strategy on one stock’s history |
+| **Daily selection** | Today’s 3–4 AI/rule picks + optional manual add |
+| **Live quotes** | Last traded price from Kite |
 
-The form often shows a locked `https://` prefix. **Delete it and paste the full URL including `http://`.** Zerodha allows HTTP only for `127.0.0.1`. Do not use `https://127.0.0.1` — your dashboard is not serving TLS.
+---
 
-Postback is an order-status webhook. It needs a public HTTPS URL. You do not need it to log in, pull quotes, or backtest. Leave it blank.
-
-After the app is created, copy **API key** and **API secret**. You will paste them into the dashboard (they stay in local `.env`).
-
-Kite access tokens expire every trading day (~6 AM IST). Click **Connect Kite** on the dashboard each morning.
-
-## Setup
+## First-time setup (local)
 
 Python 3.11+ recommended.
 
@@ -48,22 +144,41 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -e ".[dev]"
 copy .env.example .env
+python -m trading_bot init-db
+python -m trading_bot dashboard
 ```
 
-`.env` keys (or save them from the dashboard Setup tab):
+`.env` (or dashboard Setup tab):
 
-- `PAPER_MODE=true` — leave this.
-- `OPENAI_API_KEY` — your existing OpenAI key.
-- `KITE_API_KEY` / `KITE_API_SECRET` — from the Connect app after you create it.
-- `KITE_ACCESS_TOKEN` — filled automatically after you click Connect Kite.
-- `KITE_REDIRECT_URL=http://127.0.0.1:8501/` — must match the Kite form exactly.
+- `PAPER_MODE=true` — leave this  
+- `OPENAI_API_KEY`  
+- `KITE_API_KEY` / `KITE_API_SECRET`  
+- `KITE_ACCESS_TOKEN` — filled after Connect Kite  
+- `KITE_REDIRECT_URL=http://127.0.0.1:8501/` for local  
+
+Never commit `.env`. See [SECURITY.md](SECURITY.md).
+
+---
+
+## Kite Connect app form
+
+| Field | Local | Streamlit Cloud |
+| --- | --- | --- |
+| **Type** | **Connect** (not Personal) | same |
+| **App name** | `sam_bot` | same |
+| **Client ID** | `AR5852` | same |
+| **Redirect URL** | `http://127.0.0.1:8501/` | `https://YOUR-APP.streamlit.app/` |
+| **Postback URL** | empty | empty |
+
+Erase the form’s locked `https://` when using local HTTP. Cloud must use real HTTPS.
+
+---
 
 ## Streamlit Community Cloud deploy
 
-1. Open [share.streamlit.io](https://share.streamlit.io) → **New app**
-2. Connect GitHub repo `shaikssam65/NOT_BACKTEST`
-3. **Main file path:** `app.py`
-4. **Advanced settings → Secrets** — paste (with your real keys):
+1. [share.streamlit.io](https://share.streamlit.io) → **New app**  
+2. Repo `shaikssam65/NOT_BACKTEST` · branch `master` · main file **`app.py`**  
+3. Secrets:
 
 ```toml
 PAPER_MODE = "true"
@@ -74,83 +189,52 @@ KITE_API_SECRET = "..."
 KITE_REDIRECT_URL = "https://YOUR-APP-NAME.streamlit.app/"
 ```
 
-5. Deploy, then copy the live URL (`https://….streamlit.app/`)
-6. On [developers.kite.trade/apps](https://developers.kite.trade/apps) → **sam_bot** → set **Redirect URL** to that exact URL (trailing `/`)
-7. Update `KITE_REDIRECT_URL` in Streamlit Secrets to match, **reboot** the app
-8. Open the app → **Connect Kite**
+4. Deploy → copy live URL  
+5. Kite app Redirect URL = that URL (trailing `/`)  
+6. Match `KITE_REDIRECT_URL` in Secrets → reboot → **Connect Kite**
 
-**Postback URL** on Kite stays empty.
+---
 
-Do not put secrets in the GitHub repo. Use Streamlit Secrets only.
+## Build status
 
-Local run is unchanged: `python -m trading_bot dashboard` with `.env`.
+| Module | Status |
+| --- | --- |
+| Universe + daily selection | Done |
+| AI decision layer | Done |
+| Backtest + cache | Done |
+| Streamlit dashboard | Done |
+| Risk gate `validate_order()` | Phase 3 — next |
+| Paper / live orders | Phase 4+ — not built |
 
-**Never commit `.env` or real API keys to GitHub.** See [SECURITY.md](SECURITY.md).
+---
 
-## Commands
+## Extra commands
 
 ```bash
 python -m trading_bot init-db
-
-# Dashboard: save keys, Connect Kite, run backtests, see quotes
-python -m trading_bot dashboard
-
-# Daily 3–4 stock selection
+python -m trading_bot refresh-universe
 python -m trading_bot select --date 2026-08-14
-
 python -m trading_bot backtest --symbol RELIANCE --strategy combined --start 2024-01-01 --end 2025-12-31 --capital 100000
-
-python -m trading_bot serve
-```
-
-API (after `serve`):
-
-- `GET /health`
-- `GET /universe`
-- `POST /universe/refresh`
-- `POST /select` `{ "date": "2026-08-14", "manual_symbol": "INFY", "use_llm": false }`
-- `GET /selections?date=2026-08-14`
-- `POST /backtest`
-- `GET /ai-decisions?symbol=RELIANCE`
-- `GET /kite/status`
-
-Weekday scheduler: 08:45 Asia/Kolkata, selection job only.
-
-## Selection rules
-
-- Universe: bundled NSE Top 200 seed (ranks as of 16 Aug 2026), refreshable from NSE index CSVs.
-- At least 3 of the AI picks come from the Top 100 subset when enough buy signals exist.
-- At most 1 name priced below ₹50.
-- A name is selected only when **both** the rule-based trend and the AI filter say `buy`.
-- Manual adds are stored with `source=manual`, separate from `ai_selected`. They still must pass the Phase 3 risk gate before any order.
-
-## Backtest notes
-
-- Indicators (SMA/EMA/RSI/ATR/volume) are computed in Python. The LLM does not do the math.
-- Default fill: signal at day *t* close → enter at day *t+1* open, with slippage + commission from `config/settings.yaml`.
-- Stop-loss is attached at entry (ATR or AI `stop_loss_pct`). No simulated trade without a stop.
-- Strategies:
-  - `rule_based` — indicator trend only
-  - `ai_filtered` — rule-based entries filtered by the AI signal
-  - `combined` — both must agree; an `avoid` from either side can exit
-- Historical AI uses the heuristic filter unless you pass `--use-llm` (calls the model on candidate bars; slow and costly).
-- Identical parameter runs are served from SQLite cache.
-
-Risk parameters already live in `config/settings.yaml` (`risk_per_trade_pct`, daily loss limit, max positions, no averaging down). Position sizing uses:
-
-`qty = floor((capital * risk_per_trade_pct) / (entry_price - stop_loss_price))`
-
-The hard `validate_order()` gate is Phase 3.
-
-## Tests
-
-```bash
+python -m trading_bot serve          # FastAPI on :8000
+python -m trading_bot dashboard      # Streamlit on :8501
 pytest
 ```
 
-## Next (do not skip)
+---
 
-3. Risk-management module with unit tests, wired as a hard gate on every order including manual picks.
-4. Paper trading against live quotes for several weeks (`PAPER_MODE=true`).
-5. Confirm SEBI / Zerodha algo registration before any live order.
-6. Go live with a small fraction of capital only after paper matches backtest expectations.
+## Backtest details (short)
+
+- Indicators computed in Python (LLM does not do the math)  
+- Signal at day *t* close → enter day *t+1* open  
+- Stop-loss required on every simulated trade  
+- Strategies: `rule_based` · `ai_filtered` · `combined`  
+- Risk knobs live in `config/settings.yaml`  
+
+---
+
+## Roadmap (do not skip)
+
+3. Risk gate + unit tests (every order, including manual)  
+4. Paper trading for several weeks  
+5. Confirm SEBI / Zerodha algo registration  
+6. Live with a small capital fraction only after paper matches backtests  
