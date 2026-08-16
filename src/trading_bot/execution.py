@@ -74,6 +74,7 @@ def place_buy(
     strategy: str,
     source: str = "ai_selected",
     available_capital: float | None = None,
+    qty: int | None = None,
 ) -> dict[str, Any]:
     mode = _mode(settings)
     intent = OrderIntent(
@@ -83,6 +84,7 @@ def place_buy(
         stop_loss_price=stop_loss,
         target_price=target,
         source=source,
+        qty=qty,
     )
     decision = validate_order(
         intent,
@@ -285,7 +287,11 @@ def manage_open_positions(
     as_of: date | None = None,
     fallback_prices: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
-    """Exit only on stop-loss or target — never force-sell just because a day passed."""
+    """
+    Exit on stop-loss always.
+    Target: auto for normal strategies; small_swing targets need human approval
+    (see propose_profit_exits) — we only hint, do not auto-sell target.
+    """
     as_of = as_of or date.today()
     opens = list_open_positions(conn)
     if not opens:
@@ -300,19 +306,49 @@ def manage_open_positions(
         for sym, px in fallback_prices.items():
             prices.setdefault(sym.upper(), float(px))
 
+    profit_threshold = float(settings.small_swing.min_profit_sell_pct)
     actions: list[dict[str, Any]] = []
     for pos in opens:
         symbol = pos["symbol"]
         ltp = prices.get(symbol)
         stop = float(pos["stop_loss"])
         target = pos["target"]
+        entry = float(pos["entry_price"])
+        strategy = str(pos.get("strategy") or "")
         if ltp is None:
             actions.append({"symbol": symbol, "action": "skip", "reason": "no_ltp"})
             continue
         if ltp <= stop:
             result = place_sell(conn, settings, position_id=pos["id"], exit_price=ltp, reason="stop_loss")
             actions.append({"symbol": symbol, "action": "sell_stop", **result, "ltp": ltp})
-        elif target is not None and ltp >= float(target):
+            continue
+
+        pnl_pct = ((ltp - entry) / entry) * 100.0 if entry > 0 else 0.0
+        # small_swing (or any ≥30% profit): do not auto-sell — human approval
+        if strategy == "small_swing" or pnl_pct >= profit_threshold:
+            if target is not None and ltp >= float(target):
+                actions.append(
+                    {
+                        "symbol": symbol,
+                        "action": "await_approval",
+                        "ltp": ltp,
+                        "pnl_pct": round(pnl_pct, 2),
+                        "note": f"+{pnl_pct:.1f}% — approve sell in UI (not auto-sold)",
+                    }
+                )
+            else:
+                actions.append(
+                    {
+                        "symbol": symbol,
+                        "action": "hold",
+                        "ltp": ltp,
+                        "pnl_pct": round(pnl_pct, 2),
+                        "note": "Waiting; profit sells need approval when ≥ threshold",
+                    }
+                )
+            continue
+
+        if target is not None and ltp >= float(target):
             result = place_sell(conn, settings, position_id=pos["id"], exit_price=ltp, reason="target")
             actions.append({"symbol": symbol, "action": "sell_target", **result, "ltp": ltp})
         else:

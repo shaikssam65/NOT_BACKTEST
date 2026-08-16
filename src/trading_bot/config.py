@@ -82,6 +82,21 @@ class AutoTradeConfig:
     daily_target_pct: float = 3.0
 
 
+@dataclass(frozen=True)
+class SmallSwingConfig:
+    """Small-stock swing: split capital across 2–3 names, exit at +30% with approval."""
+
+    pick_count: int = 3
+    max_price: float = 200.0
+    # Prefer names outside mega-caps when possible.
+    prefer_rank_above: int = 50
+    target_pct: float = 30.0
+    stop_loss_pct: float = 8.0
+    min_profit_sell_pct: float = 30.0
+    # Equal capital slice per pick (not risk-% sizing).
+    equal_split: bool = True
+
+
 def _nonempty(value: str | None) -> str | None:
     if value is None:
         return None
@@ -120,6 +135,7 @@ class Settings:
     backtest: BacktestConfig = field(default_factory=BacktestConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
     auto_trade: AutoTradeConfig = field(default_factory=AutoTradeConfig)
+    small_swing: SmallSwingConfig = field(default_factory=SmallSwingConfig)
 
     @property
     def kite_ready(self) -> bool:
@@ -192,5 +208,9 @@ def load_settings(config_path: Path | None = None) -> Settings:
         auto_trade=AutoTradeConfig(**{
             k: v for k, v in _section(raw, "auto_trade").items()
             if k in AutoTradeConfig.__dataclass_fields__
+        }),
+        small_swing=SmallSwingConfig(**{
+            k: v for k, v in _section(raw, "small_swing").items()
+            if k in SmallSwingConfig.__dataclass_fields__
         }),
     )

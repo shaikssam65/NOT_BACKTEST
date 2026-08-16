@@ -11,6 +11,10 @@ from trading_bot.backtest import backtest
 from trading_bot.strategies import PRIMARY_STRATEGIES, STRATEGY_LABELS
 from trading_bot.auto_trade import run_daily_auto_trade
 from trading_bot.execution import list_open_positions, manage_open_positions
+from trading_bot.small_swing import (
+    execute_approved_sells,
+    propose_profit_exits,
+)
 from trading_bot.config import ROOT, load_settings
 from trading_bot.data_provider import as_date
 from trading_bot.export_backtest import (
@@ -217,7 +221,7 @@ def _backtest_tab(settings, conn, provider) -> None:
     default_end = date.today()
     default_start = default_end - timedelta(days=365)
     c1, c2, c3, c4 = st.columns(4)
-    strategy_options = list(PRIMARY_STRATEGIES)
+    strategy_options = [s for s in PRIMARY_STRATEGIES if s != "small_swing"]
     default_ix = 0
     symbol = c1.selectbox("Stock", symbols, index=symbols.index("RELIANCE") if "RELIANCE" in symbols else 0)
     strategy = c2.selectbox(
@@ -225,7 +229,7 @@ def _backtest_tab(settings, conn, provider) -> None:
         strategy_options,
         index=default_ix,
         format_func=lambda s: STRATEGY_LABELS.get(s, s),
-        help="Only two modes: 6 rule voters, or 2 AI agents.",
+        help="Small-swing mode is for Auto-trade only (capital split + 30% approval sells).",
     )
     start = c3.date_input("Start", value=default_start)
     end = c4.date_input("End", value=default_end)
@@ -341,11 +345,10 @@ def _auto_trade_tab(settings, conn, provider) -> None:
     st.subheader("Daily auto-trade")
     st.markdown(
         """
-**Two decision modes only:**  
-1. **Rules combo** — 6 rule voters (SMA, EMA, RSI, trend, momentum, volume)  
-2. **Dual agents** — Agent-Trend + Agent-Risk must both buy  
-
-Exits only on stop or target. Run each market day for new entries.
+**Three decision modes:**  
+1. **Rules combo** — 6 rule voters  
+2. **Dual agents** — Agent-Trend + Agent-Risk  
+3. **Small stocks** — pick 2–3 cheap names, **split your capital**, target **+30%**; sells need **your approval**
 """
     )
     if settings.paper_mode:
@@ -368,14 +371,29 @@ Exits only on stop or target. Run each market day for new entries.
         value=float(settings.capital),
         step=10_000.0,
         key="auto_capital",
-        help="Used for position sizing and risk checks. Does not withdraw money by itself.",
+        help="For Small stocks mode this amount is split equally across 2–3 picks.",
     )
+    pick_n = 3
+    if strategy == "small_swing":
+        pick_n = int(
+            st.selectbox(
+                "How many small stocks to buy",
+                [2, 3],
+                index=1,
+                key="small_pick_n",
+            )
+        )
+        st.caption(
+            f"Each pick gets ~₹{float(trade_capital) / pick_n:,.0f}. "
+            f"Target +{settings.small_swing.target_pct:.0f}% · "
+            f"max price ₹{settings.small_swing.max_price:.0f}."
+        )
     use_llm = st.checkbox(
-        "Use OpenAI for Dual agents (ignored for Rules combo; falls back to heuristics if off)",
+        "Use OpenAI for Dual agents (ignored for Rules / Small stocks)",
         value=settings.openai_ready,
         key="auto_llm",
     )
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     if c1.button("Run daily auto-trade now", type="primary"):
         status = st.status("Running auto-trade…", expanded=True)
         try:
@@ -383,27 +401,49 @@ Exits only on stop or target. Run each market day for new entries.
             def _progress(msg: str) -> None:
                 status.write(msg)
 
-            result = run_daily_auto_trade(
-                conn,
-                settings,
-                provider,
+            kwargs = dict(
+                conn=conn,
+                settings=settings,
+                provider=provider,
                 strategy=strategy,
                 use_llm=use_llm,
                 manage_exits=True,
                 trade_capital=float(trade_capital),
                 progress=_progress,
             )
+            if strategy == "small_swing":
+                from trading_bot.small_swing import run_small_swing_trade
+
+                result = run_small_swing_trade(
+                    conn,
+                    settings,
+                    provider,
+                    trade_capital=float(trade_capital),
+                    pick_count=pick_n,
+                    progress=_progress,
+                )
+            else:
+                result = run_daily_auto_trade(**kwargs)
             st.session_state["auto_trade"] = result
+            if result.get("profit_proposals"):
+                st.session_state["profit_proposals"] = result["profit_proposals"]
             status.update(label="Auto-trade finished", state="complete")
         except Exception as exc:
             status.update(label="Auto-trade failed", state="error")
             st.error(str(exc))
             return
-    if c2.button("Manage exits only (check SL/target vs LTP)"):
+    if c2.button("Manage exits only (SL / hints)"):
         try:
             actions = manage_open_positions(conn, settings)
             st.session_state["exit_actions"] = actions
             st.info(f"Checked {len(actions)} open position(s).")
+        except Exception as exc:
+            st.error(str(exc))
+    if c3.button("Scan account for 30%+ profits"):
+        try:
+            proposals = propose_profit_exits(conn, settings)
+            st.session_state["profit_proposals"] = proposals
+            st.info(f"Found {len(proposals)} position(s) at/above 30% profit (need your approval to sell).")
         except Exception as exc:
             st.error(str(exc))
 
@@ -428,10 +468,10 @@ Exits only on stop or target. Run each market day for new entries.
         if detected:
             st.dataframe(pd.DataFrame(detected), hide_index=True, use_container_width=True)
         else:
-            st.caption("No buy candidates today — rules/agents did not agree. That is normal.")
+            st.caption("No buy candidates this run.")
 
         if result.get("votes"):
-            with st.expander("Ensemble votes (detail)", expanded=False):
+            with st.expander("Votes (detail)", expanded=False):
                 vote_rows = []
                 for v in result["votes"]:
                     rv = v.get("rule_votes") or {}
@@ -447,8 +487,6 @@ Exits only on stop or target. Run each market day for new entries.
                             "trend": rv.get("trend_quality"),
                             "agent_trend": (v.get("agent_trend") or {}).get("signal"),
                             "agent_risk": (v.get("agent_risk") or {}).get("signal"),
-                            "stop_%": v.get("stop_loss_pct"),
-                            "target_%": v.get("target_pct"),
                             "reasoning": v.get("reasoning"),
                         }
                     )
@@ -477,8 +515,46 @@ Exits only on stop or target. Run each market day for new entries.
             st.markdown("### Exit checks this run")
             st.dataframe(pd.DataFrame(result["exits"]), hide_index=True, use_container_width=True)
 
+    # Human approval panel for ≥30% profits (bot + Kite holdings)
+    st.markdown("---")
+    st.markdown("### Approve sells (≥30% profit)")
+    st.caption(
+        "Bot positions and Kite holdings at/above 30% unrealized profit. "
+        "Nothing sells until you approve. Paper mode will not sell real Kite holdings."
+    )
+    proposals = st.session_state.get("profit_proposals") or (
+        (result or {}).get("profit_proposals") if result else None
+    )
+    if not proposals:
+        st.caption("No proposals yet — run Small stocks auto-trade or **Scan account for 30%+ profits**.")
+    else:
+        approved_rows: list[dict] = []
+        for i, p in enumerate(proposals):
+            label = (
+                f"{p.get('symbol')} · {p.get('source')} · "
+                f"+{p.get('pnl_pct')}% · qty {p.get('qty')} · "
+                f"₹{p.get('entry_price')} → ₹{p.get('ltp')}"
+            )
+            if st.checkbox(f"Approve sell: {label}", key=f"approve_sell_{i}_{p.get('symbol')}"):
+                approved_rows.append(p)
+        if st.button("Execute approved sells", type="primary", key="exec_approved_sells"):
+            if not approved_rows:
+                st.warning("Tick at least one box to approve.")
+            else:
+                try:
+                    sell_results = execute_approved_sells(conn, settings, approved_rows)
+                    st.session_state["approved_sell_results"] = sell_results
+                    # Refresh proposals after sells
+                    st.session_state["profit_proposals"] = propose_profit_exits(conn, settings)
+                    st.success(f"Processed {len(sell_results)} approved sell(s).")
+                    st.dataframe(pd.DataFrame(sell_results), hide_index=True, use_container_width=True)
+                except Exception as exc:
+                    st.error(str(exc))
+        if st.session_state.get("approved_sell_results") and not st.session_state.get("_just_show"):
+            pass
+
     opens = list_open_positions(conn)
-    st.markdown("### Open positions (live book)")
+    st.markdown("### Open positions (bot book)")
     if opens:
         enriched = []
         for p in opens:
@@ -490,7 +566,7 @@ Exits only on stop or target. Run each market day for new entries.
                     **dict(p),
                     "exit_plan": (
                         f"SELL ≤ {stop:.2f} (SL)"
-                        + (f" or ≥ {float(target):.2f} (target)" if target is not None else "")
+                        + (f" or ≥ {float(target):.2f} (target — approve if small_swing)" if target is not None else "")
                     ),
                 }
             )

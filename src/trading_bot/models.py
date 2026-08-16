@@ -8,6 +8,7 @@ SelectionSource = Literal["ai_selected", "manual"]
 StrategyName = Literal[
     "rules_combo",
     "dual_agents",
+    "small_swing",
     "ensemble",
     "sma_crossover",
     "ema_crossover",

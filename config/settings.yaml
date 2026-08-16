@@ -55,3 +55,13 @@ auto_trade:
   intended_hold_days: 1
   daily_stop_loss_pct: 1.5
   daily_target_pct: 3.0
+
+# Small-stock swing: 2–3 cheap names, equal capital split, +30% target (human-approved sells).
+small_swing:
+  pick_count: 3
+  max_price: 200.0
+  prefer_rank_above: 50
+  target_pct: 30.0
+  stop_loss_pct: 8.0
+  min_profit_sell_pct: 30.0
+  equal_split: true

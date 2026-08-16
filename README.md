@@ -56,14 +56,15 @@ flowchart TD
   WAIT --> EXITS
 ```
 
-### Strategies (only two)
+### Strategies (UI)
 
 | Key | What it does |
 | --- | --- |
-| `rules_combo` | **1** — 6 rule voters combined (SMA, EMA, RSI, trend, momentum, volume). Need ≥3 buys. |
-| `dual_agents` | **2** — Agent-Trend + Agent-Risk must both say buy. |
+| `rules_combo` | **1** — 6 rule voters (≥3 buys) |
+| `dual_agents` | **2** — Agent-Trend + Agent-Risk both buy |
+| `small_swing` | **3** — 2–3 small stocks (≤₹200), **split capital**, **+30% target**, sells need **your approval** |
 
-Legacy names (`ensemble`, `combined`, `sma_ai`, …) still map to one of these two.
+Legacy names still map to mode 1 or 2.
 
 ### Daily auto-trade (paper)
 

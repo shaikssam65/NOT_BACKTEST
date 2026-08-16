@@ -184,6 +184,9 @@ def validate_order(
         qty = intent.qty if intent.qty and intent.qty > 0 else position_qty(
             capital, risk.risk_per_trade_pct, intent.entry_price, intent.stop_loss_price
         )
+        max_affordable = math.floor(capital / intent.entry_price) if intent.entry_price > 0 else 0
+        if intent.qty and intent.qty > 0:
+            qty = min(int(intent.qty), max_affordable)
         if qty <= 0:
             decision = RiskDecision(False, "position_size_zero")
             log_risk_event(conn, event_type="validate_order", symbol=symbol, decision=decision)

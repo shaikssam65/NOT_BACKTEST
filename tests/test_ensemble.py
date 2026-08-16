@@ -9,7 +9,10 @@ from tests.conftest import trending_ohlcv
 
 
 def test_only_two_primary_strategies():
-    assert PRIMARY_STRATEGIES == ("rules_combo", "dual_agents")
+    assert "rules_combo" in PRIMARY_STRATEGIES
+    assert "dual_agents" in PRIMARY_STRATEGIES
+    assert "small_swing" in PRIMARY_STRATEGIES
+    assert len(PRIMARY_STRATEGIES) == 3
 
 
 def test_normalize_aliases_to_two_modes():

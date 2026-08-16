@@ -17,6 +17,7 @@ from trading_bot.execution import list_open_positions, manage_open_positions, pl
 from trading_bot.indicators import add_indicators, snapshot_from_frame
 from trading_bot.models import AISignal, Candidate
 from trading_bot.selection import apply_selection_constraints, persist_selections
+from trading_bot.small_swing import run_small_swing_trade
 from trading_bot.strategies import normalize_strategy
 from trading_bot.universe import get_universe
 
@@ -79,6 +80,15 @@ def run_daily_auto_trade(
     """
     report = progress or _noop_progress
     strategy = normalize_strategy(strategy)
+    if strategy == "small_swing":
+        return run_small_swing_trade(
+            conn,
+            settings,
+            provider,
+            as_of=as_of,
+            trade_capital=trade_capital,
+            progress=report,
+        )
     if strategy not in {"rules_combo", "dual_agents"}:
         strategy = "rules_combo"
     as_of = as_of or date.today()

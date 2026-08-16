@@ -1,8 +1,9 @@
 """Named trading strategies for backtest + daily auto-trade.
 
-Only two primary modes (what the UI shows):
+Only three primary modes (what the UI shows):
   1) rules_combo  — 6 rule-based voters combined
   2) dual_agents  — Agent-Trend + Agent-Risk
+  3) small_swing  — 2–3 small stocks, equal capital split, +30% target (human-approved sells)
 Legacy names still normalize for old caches/CLI.
 """
 
@@ -17,6 +18,7 @@ from trading_bot.models import Signal
 StrategyName = Literal[
     "rules_combo",
     "dual_agents",
+    "small_swing",
     # Legacy (normalize → primary)
     "ensemble",
     "sma_crossover",
@@ -34,13 +36,14 @@ StrategyName = Literal[
 ]
 
 # Only these appear in the dashboard / recommended CLI choices.
-PRIMARY_STRATEGIES: tuple[StrategyName, ...] = ("rules_combo", "dual_agents")
+PRIMARY_STRATEGIES: tuple[StrategyName, ...] = ("rules_combo", "dual_agents", "small_swing")
 
 VALID_STRATEGIES: tuple[StrategyName, ...] = PRIMARY_STRATEGIES
 
 STRATEGY_LABELS: dict[str, str] = {
     "rules_combo": "1 · Rules combo (6 rule voters)",
     "dual_agents": "2 · Dual agents (Agent-Trend + Agent-Risk)",
+    "small_swing": "3 · Small stocks · split capital · +30% (approve sells)",
     # Legacy labels (still resolvable, not shown in UI)
     "ensemble": "Legacy → rules_combo",
     "sma_crossover": "Legacy rule",
@@ -78,6 +81,10 @@ def normalize_strategy(name: str) -> StrategyName:
         "ema_ai": "dual_agents",
         "rsi_ai": "dual_agents",
         "combined": "dual_agents",
+        "smallcap": "small_swing",
+        "small_cap": "small_swing",
+        "swing_30": "small_swing",
+        "thirty_pct": "small_swing",
     }
     key = aliases.get(key, key)
     if key not in PRIMARY_STRATEGIES:
@@ -301,8 +308,8 @@ def rules_combo_vote(row: pd.Series, *, min_buys: int = 3) -> tuple[int, Signal,
 
 def rule_signal_for(strategy: str, row: pd.Series) -> tuple[int, Signal]:
     name = normalize_strategy(strategy)
-    if name == "rules_combo":
-        score, signal, _votes = rules_combo_vote(row, min_buys=3)
+    if name in {"rules_combo", "small_swing"}:
+        score, signal, _votes = rules_combo_vote(row, min_buys=3 if name == "rules_combo" else 2)
         return score, signal
     # dual_agents: rules are informational only; soft trend_quality for snapshot
     return signal_trend_quality(row)
@@ -314,8 +321,8 @@ def needs_ai(strategy: str) -> bool:
 
 def final_signal(strategy: str, rule: Signal, ai: Signal) -> Signal:
     name = normalize_strategy(strategy)
-    if name == "rules_combo":
+    if name in {"rules_combo", "small_swing"}:
         return rule
-    # dual_agents — AI agents decide (ai arg already reflects agent agreement in auto-trade)
+    # dual_agents — AI agents decide
     return ai
 
