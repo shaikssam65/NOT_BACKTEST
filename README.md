@@ -82,6 +82,64 @@ Same run twice = instant (results cached in SQLite).
 
 Streamlit Cloud cannot push CSVs to GitHub. Use the download buttons. Locally, exports also land in `data/exports/backtests/` (gitignored).
 
+### How backtest works (flowchart)
+
+Fake money + **real historical prices** → simulated buys/sells → profit/loss report.  
+No real orders. No Kite account reports. No live money movement.
+
+```mermaid
+flowchart TD
+  A[You click Run backtest] --> B[Pick symbol + dates + strategy + capital]
+  B --> C{Already in SQLite cache?}
+  C -->|Yes| D[Load cached history]
+  C -->|No| E{Kite connected?}
+  E -->|Yes| F[Download history from Kite API]
+  E -->|No| G[Download history from Yahoo Finance SYMBOL.NS]
+  F -->|Kite fails| G
+  F --> H[Save bars to SQLite cache]
+  G --> H
+  D --> I[Compute indicators in Python SMA EMA RSI ATR volume]
+  H --> I
+  I --> J{Strategy}
+  J -->|rule_based| K[Indicator signal only]
+  J -->|ai_filtered| L[Indicators then AI filter]
+  J -->|combined| M[Both must say buy]
+  K --> N[Simulate trades with fake money]
+  L --> N
+  M --> N
+  N --> O[Stop-loss and target on every trade]
+  O --> P[Show return win rate drawdown equity curve]
+  P --> Q[Download CSV summary trades equity]
+```
+
+#### Without Kite connected
+
+```text
+Run backtest → need prices → Yahoo Finance → indicators → fake trades → P&L / CSV
+```
+
+- Works without login  
+- Uses Yahoo’s NSE history (`RELIANCE.NS`, etc.)  
+- Still **real past prices**, not made-up numbers  
+- No live quotes tab  
+
+#### With Kite connected
+
+```text
+Connect Kite → Run backtest → need prices → Kite historical API → (fallback Yahoo) → fake trades → P&L / CSV
+```
+
+- Prefers **Zerodha Kite daily history**  
+- If Kite fails or misses data → falls back to Yahoo  
+- Same simulation (fake money) — **not** your cash, **not** Kite reports/portfolio  
+
+| | Kite **not** connected | Kite **connected** |
+| --- | --- | --- |
+| Backtest price source | Yahoo | Kite first, then Yahoo |
+| Live quotes | No | Yes |
+| Real money orders | No | No |
+| Uses your Kite P&L reports | No | No |
+
 ### 4. Daily stock selection
 
 **Dashboard:** tab **Daily selection** → pick date → optional manual symbol → **Run selection**.
