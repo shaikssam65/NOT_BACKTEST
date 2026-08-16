@@ -68,7 +68,9 @@ Browser opens at `http://127.0.0.1:8501/`.
 4. Choose start date, end date, capital (₹)
 5. Leave “Use live OpenAI on each bar” **off** unless you want a slow/expensive run  
 6. Click **Run backtest**
-7. Read return %, win rate, max drawdown, equity curve, and commentary
+7. Under **Download CSV**, save Summary / Trades / Equity curve to your PC
+
+You’ll get return %, win rate, max drawdown, equity curve, and commentary.
 
 **From the command line**
 
@@ -77,6 +79,8 @@ python -m trading_bot backtest --symbol RELIANCE --strategy combined --start 202
 ```
 
 Same run twice = instant (results cached in SQLite).
+
+Streamlit Cloud cannot push CSVs to GitHub. Use the download buttons. Locally, exports also land in `data/exports/backtests/` (gitignored).
 
 ### 4. Daily stock selection
 
