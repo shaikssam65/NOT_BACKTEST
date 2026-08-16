@@ -60,6 +60,32 @@ def _consume_kite_callback(settings) -> None:
 
 
 def _setup_tab(settings) -> None:
+    st.subheader("Streamlit Cloud deploy")
+    st.markdown(
+        """
+1. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**
+2. Repo: `shaikssam65/NOT_BACKTEST` · Branch: `master` · **Main file path:** `app.py`
+3. **Advanced settings → Secrets** — paste the block from `.streamlit/secrets.toml.example` with your real keys
+4. Deploy, copy your app URL (looks like `https://xxxx.streamlit.app/`)
+5. On [developers.kite.trade/apps](https://developers.kite.trade/apps) → **sam_bot** → set **Redirect URL** to that exact HTTPS URL (with trailing `/`)
+6. Put the same URL in Streamlit Secrets as `KITE_REDIRECT_URL`, then reboot the app
+"""
+    )
+    cloud_redirect = st.text_input(
+        "Your Streamlit app URL (for Kite Redirect URL + secrets)",
+        value=settings.kite_redirect_url
+        if settings.kite_redirect_url.startswith("https://")
+        else "https://YOUR-APP-NAME.streamlit.app/",
+        help="Must match Kite Connect Redirect URL exactly.",
+    )
+    if st.button("Use this URL as KITE_REDIRECT_URL"):
+        url = cloud_redirect.strip().rstrip("/") + "/"
+        upsert_env({"KITE_REDIRECT_URL": url})
+        load_dotenv(ROOT / ".env", override=True)
+        st.success(f"Saved redirect URL: {url}")
+        st.rerun()
+
+    st.divider()
     st.subheader("1. Create the Kite app (get API key + secret)")
     st.link_button(
         "Open Kite Connect → Create app / get API keys",
@@ -68,46 +94,37 @@ def _setup_tab(settings) -> None:
     )
     st.caption(
         "After you create the app, the app page shows **API key** and **API secret**. "
-        "Copy both and paste them in step 2 below."
+        "Copy both and paste them in step 2 below (local) or Streamlit Secrets (cloud)."
     )
 
     redirect = kite_redirect_url(settings)
-    st.markdown("### Fill the Create app form exactly like this")
+    st.markdown("### Fill the Create / Edit app form")
     st.code(
-        f"""Type:              Connect   ← select this (not Personal, not Publisher)
+        f"""Type:              Connect
 App name:          sam_bot
 Zerodha Client ID: AR5852
 Redirect URL:      {redirect}
-Postback URL:      (leave completely empty — delete the https:// if shown)
+Postback URL:      (leave empty)
 Description:       Personal NSE cash-equity research and paper-trading bot.""",
         language=None,
     )
     st.text_input(
-        "Copy this Redirect URL into the form",
+        "Copy this Redirect URL into the Kite form",
         value=redirect,
         key="copy_redirect_url",
-        help="Select all and Ctrl+C. Paste into Redirect URL. Replace the form's https:// prefix.",
     )
-    col_a, col_b = st.columns(2)
-    with col_a:
+    if redirect.startswith("https://") and "streamlit.app" in redirect:
+        st.success("Using HTTPS Streamlit URL — correct for Cloud deploy.")
+    else:
         st.error(
-            "**Redirect URL:** the form shows `https://` — erase that entire field and paste "
-            f"`{redirect}` (must start with **http://**, not https)."
+            "Local mode uses `http://127.0.0.1:8501/`. "
+            "For Streamlit Cloud, change Redirect URL to your `https://….streamlit.app/` URL."
         )
-    with col_b:
-        st.warning(
-            "**Postback URL:** leave blank. Clear `https://` if the box is not empty. "
-            "You do not need postback for login or quotes."
-        )
-    st.info(
-        "Do **not** choose Personal (no historical data / quotes). "
-        "Connect costs 500 credits / 30 days — your billing balance is enough."
-    )
+    st.warning("**Postback URL:** leave blank.")
 
     st.divider()
-    st.subheader("2. Save API keys here")
+    st.subheader("2. Save API keys here (local) or use Streamlit Secrets (cloud)")
     st.caption(
-        "Keys stay in local `.env` on this PC. "
         "OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys) · "
         "Kite: [developers.kite.trade/apps](https://developers.kite.trade/apps)"
     )

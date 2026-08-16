@@ -22,3 +22,4 @@ data/kite_session.json
 secrets/
 credentials.json
 **/api_keys*
+.streamlit/secrets.toml

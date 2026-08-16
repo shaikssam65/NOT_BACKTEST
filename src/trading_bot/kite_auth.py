@@ -33,27 +33,35 @@ def ensure_env_file() -> Path:
 
 
 def upsert_env(updates: dict[str, str], path: Path | None = None) -> None:
-    """Write key=value pairs into .env without dropping unrelated lines."""
-    env_path = path or ensure_env_file()
-    raw = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
-    lines = raw.splitlines()
-    seen: set[str] = set()
-    out: list[str] = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in line:
-            out.append(line)
-            continue
-        key = line.split("=", 1)[0].strip()
-        if key in updates:
-            out.append(f"{key}={updates[key]}")
-            seen.add(key)
-        else:
-            out.append(line)
+    """Write key=value into .env when possible; always update process env."""
+    import os
+
     for key, value in updates.items():
-        if key not in seen:
-            out.append(f"{key}={value}")
-    env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+        os.environ[key] = value
+    try:
+        env_path = path or ensure_env_file()
+        raw = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
+        lines = raw.splitlines()
+        seen: set[str] = set()
+        out: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in line:
+                out.append(line)
+                continue
+            key = line.split("=", 1)[0].strip()
+            if key in updates:
+                out.append(f"{key}={updates[key]}")
+                seen.add(key)
+            else:
+                out.append(line)
+        for key, value in updates.items():
+            if key not in seen:
+                out.append(f"{key}={value}")
+        env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    except OSError:
+        # Streamlit Cloud / read-only hosts: secrets live in st.secrets + os.environ.
+        logger.info("Could not write .env; using process environment only")
 
 
 def load_session(path: Path | None = None) -> dict[str, Any] | None:
@@ -69,9 +77,8 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
     return data
 
 
-def save_session(payload: dict[str, Any], path: Path | None = None) -> Path:
+def save_session(payload: dict[str, Any], path: Path | None = None) -> Path | None:
     session_path = path or SESSION_PATH
-    session_path.parent.mkdir(parents=True, exist_ok=True)
     stored = {
         "access_token": payload.get("access_token"),
         "public_token": payload.get("public_token"),
@@ -81,7 +88,12 @@ def save_session(payload: dict[str, Any], path: Path | None = None) -> Path:
         "login_time": payload.get("login_time") or datetime.now(timezone.utc).isoformat(),
         "saved_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
-    session_path.write_text(json.dumps(stored, indent=2), encoding="utf-8")
+    try:
+        session_path.parent.mkdir(parents=True, exist_ok=True)
+        session_path.write_text(json.dumps(stored, indent=2), encoding="utf-8")
+    except OSError:
+        logger.info("Could not persist kite_session.json; token kept in environment only")
+        session_path = None  # type: ignore[assignment]
     if stored.get("access_token"):
         upsert_env({"KITE_ACCESS_TOKEN": str(stored["access_token"])})
     return session_path

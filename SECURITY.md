@@ -6,6 +6,12 @@ This repo runs with a **local** `.env` file (or GitHub Actions secrets for CI on
 
 If `OPENAI_API_KEY`, `KITE_API_KEY`, or `KITE_API_SECRET` are committed, anyone with repo access can trade/use your accounts. `.env` is gitignored on purpose.
 
+## Streamlit Community Cloud
+
+Add the same keys under **App settings → Secrets** (TOML). See `.streamlit/secrets.toml.example`.
+
+Set `KITE_REDIRECT_URL` to your live `https://….streamlit.app/` URL and update the Kite Connect app Redirect URL to match. Never commit `.streamlit/secrets.toml`.
+
 ## Local setup (required for the bot to work)
 
 ```bash

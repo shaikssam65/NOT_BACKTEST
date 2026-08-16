@@ -58,7 +58,34 @@ copy .env.example .env
 - `KITE_ACCESS_TOKEN` — filled automatically after you click Connect Kite.
 - `KITE_REDIRECT_URL=http://127.0.0.1:8501/` — must match the Kite form exactly.
 
-**Never commit `.env` or real API keys to GitHub.** See [SECURITY.md](SECURITY.md). Clone → `copy .env.example .env` → fill keys locally.
+## Streamlit Community Cloud deploy
+
+1. Open [share.streamlit.io](https://share.streamlit.io) → **New app**
+2. Connect GitHub repo `shaikssam65/NOT_BACKTEST`
+3. **Main file path:** `app.py`
+4. **Advanced settings → Secrets** — paste (with your real keys):
+
+```toml
+PAPER_MODE = "true"
+OPENAI_API_KEY = "sk-..."
+OPENAI_MODEL = "gpt-4o"
+KITE_API_KEY = "..."
+KITE_API_SECRET = "..."
+KITE_REDIRECT_URL = "https://YOUR-APP-NAME.streamlit.app/"
+```
+
+5. Deploy, then copy the live URL (`https://….streamlit.app/`)
+6. On [developers.kite.trade/apps](https://developers.kite.trade/apps) → **sam_bot** → set **Redirect URL** to that exact URL (trailing `/`)
+7. Update `KITE_REDIRECT_URL` in Streamlit Secrets to match, **reboot** the app
+8. Open the app → **Connect Kite**
+
+**Postback URL** on Kite stays empty.
+
+Do not put secrets in the GitHub repo. Use Streamlit Secrets only.
+
+Local run is unchanged: `python -m trading_bot dashboard` with `.env`.
+
+**Never commit `.env` or real API keys to GitHub.** See [SECURITY.md](SECURITY.md).
 
 ## Commands
 
