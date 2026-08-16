@@ -14,95 +14,120 @@ Live app entry: `app.py` (Streamlit Cloud).
 
 ---
 
-## What we get from the Kite API
+## What data we fetch from Kite (and what we show)
 
-This app uses Zerodha’s **Kite Connect** for login, live market data, holdings, and orders.
+When Kite is connected, the app pulls live account + market data and shows it in the UI / research report.
 
-| Kite API / call | What we use it for | Fields / data we care about |
+### 1. Account / login
+
+| We fetch | What it means | Where you see it |
 | --- | --- | --- |
-| **Login / session** (`login_url`, `generate_session`) | OAuth connect in the sidebar | `access_token`, user session |
-| **Profile** (`profile`) | Show “Kite connected” status | `user_id`, `user_name`, `email`, `exchanges` |
-| **Holdings** (`holdings`) | Auto-sell ≥30%, manual sell list | `tradingsymbol`, `quantity` + `t1_quantity`, `average_price`, `last_price`, `exchange` → we compute PnL % / ₹ |
-| **Quote** (`quote` on `NSE:SYMBOL`) | Research ranking, manual buy LTP, fallback when Finnhub has no news | `last_price` (LTP), OHLC (`open`/`high`/`low`/`close`), `volume`, `average_price`, day change % |
-| **LTP** (`ltp`) | Quick last-price lookup helper | `last_price` per symbol |
-| **Place order** (`place_order`) | Live BUY / SELL when `PAPER_MODE=false` | Market CNC on NSE: `transaction_type`, `quantity`, `order_type=MARKET`, `product=CNC` → `order_id` |
-| **Instruments + historical** (optional data path) | Daily OHLCV for indicators / research when Kite is the history provider | Instrument token, daily bars (`open`/`high`/`low`/`close`/`volume`) |
+| Login session | Connect your Zerodha account (OAuth) | Sidebar “Connect Kite” |
+| Profile | Confirm the link works | “Kite connected” + user id |
 
-**Paper mode:** holdings and quotes still come from Kite when connected; **orders are simulated** (not sent) until `PAPER_MODE=false`.
+### 2. Your holdings (for sell)
+
+| We fetch from Kite | What we compute / show |
+| --- | --- |
+| Symbol (`tradingsymbol`) | Stock name in the list |
+| Quantity (`quantity` + `t1_quantity`) | How many shares you can sell |
+| Average buy price | Your cost |
+| Last price (LTP) | Current market price |
+| → **PnL %** and **PnL ₹** | `(LTP − avg) / avg` and rupee profit |
+
+Used by: **Auto-sell ≥30%** and **Manual sell**.
+
+### 3. Live quote / market report (per stock)
+
+For research, suggest, and manual buy, we call Kite **quote** on `NSE:SYMBOL` and report:
+
+| Field | Plain meaning |
+| --- | --- |
+| **LTP** (`last_price`) | Live last traded price — used as entry price |
+| **Open / High / Low / Close** | Today’s OHLC (close here = previous close) |
+| **Day change %** | How much price moved vs previous close |
+| **Day range %** | High–low range vs previous close |
+| **Volume** | Shares traded today |
+| **Average traded price** | VWAP-style average for the day |
+
+**What the app shows in the report**
+
+- For each pick: `Kite live SYMBOL: LTP … · OHLC O/H/L/C · Day change …% · Volume …`
+- Used to **rank** suggestions (strong day / live LTP)
+- If Finnhub has **no news**, this Kite block becomes the full “live report” fallback
+
+### 4. Orders (only when Paper mode is OFF)
+
+| We send to Kite | Meaning |
+| --- | --- |
+| Market **BUY** or **SELL** | CNC cash order on NSE |
+| Quantity | Shares to buy/sell |
+| Response `order_id` | Broker order id shown in the result |
+
+In **Paper mode** we still fetch holdings/quotes from Kite, but **do not** place real orders.
+
+### 5. Optional: historical candles
+
+If Kite is used as the history provider: daily **OHLCV** bars to compute SMA / EMA / RSI / volume (same indicators as Yahoo fallback).
 
 ---
 
-## Rules that decide suggested stocks
+## How stock suggestions work (simple)
 
-Research / Suggest uses **rules only** (plus Finnhub news when available, and Kite live quotes). No ChatGPT.
+No ChatGPT. The bot is like **6 checklists + live price/news**.
 
-### 1. Universe filters (before scoring)
+### Step A — Who can be considered?
 
-| Filter | Rule |
-| --- | --- |
-| **Stock list** | Official NSE index constituents (union ≈ **Nifty Total Market ~750**). Seed: `nse_universe.csv` |
-| **Index filters** | Multi-select any combination below. Stock must be in **at least one** selected index |
-| Price bands | `0-50` … `1000-5000` (₹) — multi-select |
-| Enough history | Need enough daily bars for indicators |
+1. You pick **NSE indexes** (e.g. Smallcap, Microcap, Total Market).  
+2. You pick **price ranges** (e.g. 50–100, 100–200).  
+3. Only stocks in those indexes **and** in those price bands are scanned.
 
-**Available indexes**
+**Indexes you can filter** (official NSE lists; union ≈ Total Market ~750):  
+Nifty 50, Next 50, 100, 200, 500 · Midcap 50/100/150 · Smallcap 50/100/250 · MidSmallcap 400 · **Microcap 250** · **Smallcap250 Quality 50** · **Smallcap250 Momentum Quality 100** · **Total Market**.  
+Use **Refresh index lists** in the app to update from NSE.
 
-| Index | Approx size | Notes |
+### Step B — Six simple rules (each votes Buy / Hold / Avoid)
+
+Think of each rule as a question about the daily chart:
+
+| Rule | Simple idea | Votes **Buy** when… |
 | --- | --- | --- |
-| Nifty 50 / Next 50 / 100 / 200 / 500 | 50–500 | Large & upper mid |
-| Nifty Midcap 50 / 100 / 150 | 50–150 | Mid caps |
-| Nifty Smallcap 50 / 100 / 250 | 50–250 | Small caps (50/100 = more liquid subsets) |
-| Nifty MidSmallcap 400 | 400 | Mid + small in one list |
-| Nifty Microcap 250 | ~250 | Next 250 after Nifty 500 — smaller/newer names |
-| Nifty Smallcap250 Quality 50 | 50 | Quality screen (ROE, leverage, EPS stability) |
-| Nifty Smallcap250 Momentum Quality 100 | 100 | 6m/12m momentum + quality — strong for trading bots |
-| Nifty Total Market | ~750 | Full broad market |
+| **1. SMA crossover** | Short average above long average? | Price is in an uptrend on SMAs, not overbought, volume OK |
+| **2. EMA crossover** | Same idea with EMAs (reacts faster) | Fast EMA above slow EMA, price above them, RSI OK |
+| **3. RSI pullback** | Did the stock dip a bit in an uptrend? | Still in uptrend, but RSI cooled to about **40–55** (not chasing a spike) |
+| **4. Trend quality** | Do SMA **and** EMA agree? | Both trends bullish, price above fast SMA, RSI mid-range, volume OK |
+| **5. Momentum** | Is price still pushing up? | Price above both SMAs, RSI roughly **48–68** |
+| **6. Volume thrust** | Is buying interest rising? | Uptrend + **higher than usual volume** |
 
-Click **Refresh index lists** to re-download latest NSE CSVs.
+Each rule also gives a **score 0–100**.
 
-**Tip for under ₹100 / smaller names:** prefer **Microcap 250**, **Smallcap 100/250**, **Quality 50**, or **Momentum Quality 100**.
+**How we combine them**
 
+- Count **Buy** votes (out of 6).  
+- Usually need about **2+ Buy votes** to enter the shortlist (a bit looser for very cheap bands).  
+- Many **Avoid** votes → skip.  
+- Sort by: more Buy votes first, then higher score.  
+- Keep a shortlist of the best names.
 
-
-
-### 2. Six rule voters (each votes `buy` / `hold` / `avoid`)
-
-| Voter | Buys when (simplified) |
-| --- | --- |
-| **SMA crossover** | Fast SMA > slow SMA, price above fast SMA, RSI not extreme, volume supportive |
-| **EMA crossover** | Fast EMA > slow EMA, price above fast EMA, not below slow SMA, RSI OK |
-| **RSI pullback** | Uptrend (fast SMA > slow), price not below slow SMA, RSI cooled into **40–55** |
-| **Trend quality** | Both SMA and EMA stacks bullish, price ≥ fast SMA, RSI roughly **45–65**, volume OK |
-| **Momentum** | Price above both SMAs, RSI roughly **48–68**, not overextended |
-| **Volume thrust** | Bullish SMA+EMA stack, elevated `volume_ratio`, RSI not overbought |
-
-Each voter also returns a **0–100 score**. Combined:
-
-- Count how many vote **`buy`**
-- Research shortlist needs roughly **≥2 buy votes** (and score not too weak)
-- Too many **`avoid`** votes → skipped
-
-Shortlist is sorted by `(buy_vote_count, rule_score)` and the top names go to ranking.
-
-### 3. Final ranking (pick 2–3)
+### Step C — Live check (Kite + Finnhub)
 
 For each shortlisted name:
 
-1. **Kite live quote** — prefer live LTP; day change can boost / trim the score  
-2. **Finnhub news** (if key set and articles exist) — sentiment adjusts the combined score  
-3. If Finnhub is empty → **Kite-only fallback** (live OHLC / day change as context)  
-4. Re-check live price still matches selected **price bands**  
-5. Take top **2 or 3** by `combined_score`
+1. Pull **Kite live LTP / day change** (see section above).  
+2. Pull **Finnhub news** if the key is set; good/bad headlines adjust the score a little.  
+3. If there is no Finnhub news → use the **Kite live report** only.  
+4. Drop names whose live price left your price bands.  
+5. Take the top **2 or 3**.
 
-### 4. Position plan (suggest or buy)
+### Step D — What you get
 
-| Item | Value |
+| Mode | Result |
 | --- | --- |
-| Capital split | Equal across final picks |
-| Stop | **−8%** from entry |
-| Target | **+30%** from entry |
-| **Suggest only** | Show picks + planned qty — **no orders** |
+| **Suggest only** | Show symbols, price, planned qty, stop (−8%), target (+30%) — **no order** |
 | **Place buy orders** | Same plan, then place buys (paper or live) |
+
+**One-line summary:**  
+*Indexes + price filter → 6 chart rules vote → Kite live price (+ optional Finnhub news) ranks the winners → suggest or buy.*
 
 ---
 
