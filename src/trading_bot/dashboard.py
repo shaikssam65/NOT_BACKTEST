@@ -390,9 +390,10 @@ Schedule locally: **10:00 IST daily** profit exits · **Monday weekly** under-�
             f"auto-sell at +{settings.small_swing.min_profit_sell_pct:.0f}%."
         )
     use_llm = st.checkbox(
-        "Use OpenAI for Dual agents / Combined (ignored for Rules / Under-₹50)",
-        value=settings.openai_ready,
+        "Use OpenAI for Dual agents / Combined (slower). Leave OFF for fast heuristics.",
+        value=False,
         key="auto_llm",
+        help="ON = OpenAI only on top ~20 stocks. OFF = instant heuristics. Full-universe OpenAI was freezing the app.",
     )
     c1, c2, c3 = st.columns(3)
     if c1.button("Run now", type="primary"):

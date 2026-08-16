@@ -12,13 +12,13 @@ from typing import Any, Callable
 
 from trading_bot.config import Settings
 from trading_bot.data_provider import HistoricalDataProvider
-from trading_bot.ensemble import decide_symbol
+from trading_bot.ensemble import decide_rules_combo, decide_symbol
 from trading_bot.execution import list_open_positions, manage_open_positions, place_buy
 from trading_bot.indicators import add_indicators, snapshot_from_frame
 from trading_bot.models import AISignal, Candidate
 from trading_bot.selection import apply_selection_constraints, persist_selections
 from trading_bot.small_swing import run_small_swing_trade
-from trading_bot.strategies import normalize_strategy
+from trading_bot.strategies import normalize_strategy, rules_combo_vote
 from trading_bot.universe import get_universe
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,16 @@ def run_daily_auto_trade(
 
     universe = get_universe(conn)
     lookback_start = as_of - timedelta(days=settings.selection.lookback_days + 20)
-    log(f"Step 2/4 — Scanning {len(universe)} stocks…")
+    pool = max(5, int(settings.selection.candidate_pool))
+    llm_on = bool(use_llm and settings.openai_ready and strategy in {"dual_agents", "combined"})
+    log(f"Step 2/4 — Scanning {len(universe)} stocks (fast rule pre-screen)…")
+    if llm_on:
+        log(
+            f"  OpenAI agents will run on TOP {pool} only "
+            "(not all ~200 — that was hanging the UI)."
+        )
+    elif strategy in {"dual_agents", "combined"}:
+        log("  OpenAI off → agents use fast heuristics (seconds, not minutes).")
 
     votes: list[dict[str, Any]] = []
     detected: list[dict[str, Any]] = []
@@ -146,6 +155,8 @@ def run_daily_auto_trade(
     scanned = 0
     skipped_data = 0
 
+    # Phase 1: cheap rule screen for every name (no LLM).
+    pre: list[dict[str, Any]] = []
     for stock in universe:
         df = provider.get_ohlcv(stock.symbol, lookback_start, as_of)
         if df.empty or len(df) < settings.indicators.sma_slow + 5:
@@ -155,23 +166,30 @@ def run_daily_auto_trade(
         row = indicated.iloc[-1]
         snap = snapshot_from_frame(indicated)
         scanned += 1
-
-        vote = decide_symbol(
-            strategy,  # type: ignore[arg-type]
-            stock.symbol,
-            row,
-            snap,
-            indicated,
-            settings,
-            conn,
-            as_of_date=as_of.isoformat(),
-            use_llm=bool(use_llm and settings.openai_ready),
+        rule_score, rule_sig, rule_votes = rules_combo_vote(row, min_buys=2)
+        buy_n = sum(1 for s in rule_votes.values() if s == "buy")
+        pre.append(
+            {
+                "stock": stock,
+                "row": row,
+                "snap": snap,
+                "indicated": indicated,
+                "rule_score": rule_score,
+                "rule_sig": rule_sig,
+                "rule_votes": rule_votes,
+                "buy_n": buy_n,
+            }
         )
-        vote_dict = vote.to_dict()
-        votes.append(vote_dict)
-        if vote.final_signal != "buy":
-            continue
+        if scanned % 40 == 0:
+            log(f"  …pre-screened {scanned}/{len(universe)}")
 
+    pre.sort(key=lambda x: (x["buy_n"], x["rule_score"]), reverse=True)
+    log(f"  Pre-screen done: {scanned} ok, {skipped_data} skipped.")
+
+    def _record_buy(vote, stock, snap_ind) -> None:
+        votes.append(vote.to_dict())
+        if vote.final_signal != "buy":
+            return
         detected.append(
             {
                 "symbol": vote.symbol,
@@ -211,29 +229,56 @@ def run_daily_auto_trade(
             reasoning=vote.reasoning,
             source=vote.mode,
         )
-        snap.rule_score = int(round(vote.rule_score_avg or conf))
-        snap.rule_signal = "buy"
+        snap_ind.rule_score = int(round(vote.rule_score_avg or conf))
+        snap_ind.rule_signal = "buy"
         scored.append(
             Candidate(
                 stock=stock,
-                indicators=snap,
+                indicators=snap_ind,
                 ai=ai,
                 combined_signal="buy",
                 combined_score=vote.final_score,
                 source="ai_selected",
             )
         )
-        detail = (
-            f"{vote.rule_buy_count}/6 rules"
-            if strategy == "rules_combo"
-            else "both agents"
-        )
         log(
             f"  DETECTED BUY {vote.symbol} @ {vote.last_price:.2f} "
-            f"({detail}) score={vote.final_score}"
+            f"score={vote.final_score}"
         )
 
-    log(f"  Scanned {scanned} stocks ({skipped_data} skipped — insufficient history).")
+    # Phase 2: decide
+    if strategy == "rules_combo":
+        log("Step 2b — Rules combo decisions (no OpenAI)…")
+        for item in pre:
+            vote = decide_rules_combo(
+                item["stock"].symbol,
+                item["row"],
+                item["snap"],
+                settings,
+                min_rule_buys=3,
+            )
+            _record_buy(vote, item["stock"], item["snap"])
+    else:
+        shortlist = pre[:pool]
+        log(
+            f"Step 2b — Running {strategy} on {len(shortlist)} shortlisted names "
+            f"{'(OpenAI)' if llm_on else '(heuristics)'}…"
+        )
+        for i, item in enumerate(shortlist, 1):
+            log(f"  [{i}/{len(shortlist)}] {item['stock'].symbol}…")
+            vote = decide_symbol(
+                strategy,  # type: ignore[arg-type]
+                item["stock"].symbol,
+                item["row"],
+                item["snap"],
+                item["indicated"],
+                settings,
+                conn,
+                as_of_date=as_of.isoformat(),
+                use_llm=llm_on,
+            )
+            _record_buy(vote, item["stock"], item["snap"])
+
     log(f"  Buy candidates before constraints: {len(detected)}")
 
     buyable = [c for c in scored if c.combined_signal == "buy"]
