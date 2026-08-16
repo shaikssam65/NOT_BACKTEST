@@ -148,7 +148,7 @@ def main() -> None:
     st.markdown(
         """
 1. **Auto-sell** ≥30% · **Manual sell** · **Manual buy**  
-2. **Research** — pick **Nifty indexes** + price ranges → Suggest only or Place buy orders  
+2. **Research** — pick **Nifty indexes** + price ranges + **how many stocks** → Suggest only or Place buy orders  
    (rules + Finnhub + Kite; no ChatGPT)
 """
     )
@@ -389,7 +389,14 @@ def main() -> None:
             step=5_000.0,
         )
     with col_b:
-        pick_n = st.selectbox("How many stocks", [2, 3], index=1)
+        pick_n = st.number_input(
+            "How many stocks",
+            min_value=1,
+            max_value=50,
+            value=3,
+            step=1,
+            help="Any number from 1 to 50. Capital is split equally across that many picks.",
+        )
 
     def _run_research(*, place_orders: bool) -> None:
         if not index_filters:

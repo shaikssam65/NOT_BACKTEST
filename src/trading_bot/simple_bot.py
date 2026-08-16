@@ -602,7 +602,7 @@ def research_and_buy(
     """
     log = progress or _noop
     as_of = as_of or date.today()
-    pick_count = max(2, min(3, int(pick_count)))
+    pick_count = max(1, min(50, int(pick_count)))
     capital = float(capital)
     if capital < 5_000:
         raise ValueError("Capital should be at least ₹5,000")
@@ -678,7 +678,8 @@ def research_and_buy(
             scored.append(row)
 
     scored.sort(key=lambda c: (c["rule_buys"], c["rule_score"]), reverse=True)
-    shortlist = scored[:12]
+    shortlist_n = max(12, min(40, pick_count * 4))
+    shortlist = scored[:shortlist_n]
     log(f"  Pool {len(universe)} · in-band {scanned} · rule shortlist {len(shortlist)}")
     if scanned == 0:
         log(
