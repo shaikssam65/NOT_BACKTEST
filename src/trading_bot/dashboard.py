@@ -8,6 +8,13 @@ from dotenv import load_dotenv
 
 from trading_bot.backtest import VALID_STRATEGIES, backtest
 from trading_bot.config import ROOT, load_settings
+from trading_bot.export_backtest import (
+    equity_frame,
+    summary_frame,
+    to_csv_bytes,
+    trades_frame,
+    try_save_csv_files,
+)
 from trading_bot.kite_auth import (
     DEFAULT_REDIRECT_URL,
     clear_session,
@@ -214,6 +221,7 @@ def _backtest_tab(settings, conn, provider) -> None:
                     use_llm=use_llm,
                 )
                 st.session_state["backtest"] = result.to_dict()
+                st.session_state["backtest_export_paths"] = try_save_csv_files(result.to_dict())
             except Exception as exc:
                 st.error(str(exc))
                 return
@@ -240,6 +248,39 @@ def _backtest_tab(settings, conn, provider) -> None:
         st.dataframe(pd.DataFrame(trades), hide_index=True, use_container_width=True)
     if payload.get("cached"):
         st.caption("Served from SQLite cache.")
+
+    st.subheader("Download CSV")
+    st.caption(
+        "On Streamlit Cloud, use these download buttons — files are not pushed to GitHub. "
+        "Results are also cached in SQLite for the same inputs."
+    )
+    symbol = str(payload.get("symbol") or "backtest")
+    strategy = str(payload.get("strategy_name") or "strategy")
+    d1, d2, d3 = st.columns(3)
+    d1.download_button(
+        "Summary CSV",
+        data=to_csv_bytes(summary_frame(payload)),
+        file_name=f"{symbol}_{strategy}_summary.csv",
+        mime="text/csv",
+        key="dl_summary",
+    )
+    d2.download_button(
+        "Trades CSV",
+        data=to_csv_bytes(trades_frame(payload)),
+        file_name=f"{symbol}_{strategy}_trades.csv",
+        mime="text/csv",
+        key="dl_trades",
+    )
+    d3.download_button(
+        "Equity curve CSV",
+        data=to_csv_bytes(equity_frame(payload)),
+        file_name=f"{symbol}_{strategy}_equity.csv",
+        mime="text/csv",
+        key="dl_equity",
+    )
+    paths = st.session_state.get("backtest_export_paths") or {}
+    if paths:
+        st.caption("Also saved on server disk (local/ephemeral): " + ", ".join(paths.values()))
 
 
 def _selection_tab(settings, conn, provider) -> None:

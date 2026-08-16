@@ -13,6 +13,7 @@ htmlcov/
 dist/
 build/
 data/db/
+data/exports/
 data/kite_session.json
 *.db
 *.db-journal
