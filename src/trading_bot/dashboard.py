@@ -22,7 +22,12 @@ from trading_bot.runtime import boot, build_provider
 from trading_bot.selection import list_selections, run_daily_selection
 from trading_bot.universe import get_universe
 
-st.set_page_config(page_title="NSE Equity Bot", layout="wide")
+# set_page_config lives in app.py (must be first Streamlit call on Cloud).
+# Local `python -m trading_bot dashboard` still needs it here when this file is the entry.
+try:
+    st.set_page_config(page_title="NSE Equity Bot", layout="wide")
+except st.errors.StreamlitAPIException:
+    pass
 
 
 def _boot():
@@ -327,6 +332,34 @@ def main() -> None:
     c3.metric("Kite", "connected" if kite.get("ok") else "not connected")
     c4.metric("Universe", len(get_universe(conn)))
 
+    # Clear next-step banner so the page never looks “empty”.
+    if not kite.get("ok"):
+        st.warning(
+            "**Nothing to trade yet — and that is correct.** "
+            "This app does not auto-trade. Next: open **Setup & Kite** → **Connect Kite**, "
+            "then use **Backtest** or **Daily selection**."
+        )
+        if settings.kite_api_key and settings.kite_api_secret:
+            st.link_button(
+                "Connect Kite now",
+                login_url(settings.kite_api_key),
+                type="primary",
+            )
+        else:
+            st.error("Add KITE_API_KEY and KITE_API_SECRET in Streamlit **Secrets**, then reboot the app.")
+    else:
+        st.info(
+            "Kite connected. Open **Backtest** to simulate a stock, or **Daily selection** to pick today’s names. "
+            "Still no live orders while PAPER_MODE is on."
+        )
+
+    redirect = kite_redirect_url(settings)
+    if "YOUR-APP-NAME" in redirect or redirect.rstrip("/") == "http://127.0.0.1:8501":
+        st.error(
+            "Set `KITE_REDIRECT_URL = \"https://backtestind.streamlit.app/\"` in Streamlit Secrets "
+            "and the same URL on the Kite app Redirect URL, then reboot."
+        )
+
     tab_setup, tab_bt, tab_sel, tab_px = st.tabs(
         ["Setup & Kite", "Backtest", "Daily selection", "Live quotes"]
     )
@@ -340,4 +373,5 @@ def main() -> None:
         _quotes_tab(settings, conn)
 
 
-main()
+if __name__ == "__main__":
+    main()
