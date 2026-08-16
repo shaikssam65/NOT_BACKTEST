@@ -128,6 +128,7 @@ class Settings:
     capital: float
     database_path: Path
     openai_api_key: str | None
+    finnhub_api_key: str | None
     kite_api_key: str | None
     kite_api_secret: str | None
     kite_access_token: str | None
@@ -147,6 +148,10 @@ class Settings:
     @property
     def openai_ready(self) -> bool:
         return bool(self.openai_api_key)
+
+    @property
+    def finnhub_ready(self) -> bool:
+        return bool(self.finnhub_api_key)
 
 
 def _section(raw: dict[str, Any], name: str) -> dict[str, Any]:
@@ -183,6 +188,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
         capital=float(raw.get("capital", 100000.0)),
         database_path=database_path,
         openai_api_key=_nonempty(os.getenv("OPENAI_API_KEY")),
+        finnhub_api_key=_nonempty(os.getenv("FINNHUB_API_KEY")),
         kite_api_key=_nonempty(os.getenv("KITE_API_KEY")),
         kite_api_secret=_nonempty(os.getenv("KITE_API_SECRET")),
         kite_access_token=_nonempty(os.getenv("KITE_ACCESS_TOKEN")) or _session_access_token(),

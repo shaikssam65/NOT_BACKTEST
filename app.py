@@ -26,6 +26,7 @@ def _apply_streamlit_secrets() -> None:
         "PAPER_MODE",
         "OPENAI_API_KEY",
         "OPENAI_MODEL",
+        "FINNHUB_API_KEY",
         "KITE_API_KEY",
         "KITE_API_SECRET",
         "KITE_ACCESS_TOKEN",

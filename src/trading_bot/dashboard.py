@@ -93,13 +93,17 @@ def _setup_sidebar(settings) -> None:
             else:
                 st.error("Add KITE_API_KEY + KITE_API_SECRET in Secrets / .env")
 
+        st.caption(
+            "Finnhub: "
+            + ("ready" if settings.finnhub_ready else "missing FINNHUB_API_KEY (news skipped)")
+        )
         with st.expander("Save keys locally (optional)"):
             api_key = st.text_input("KITE_API_KEY", value=settings.kite_api_key or "", type="password")
             api_secret = st.text_input(
                 "KITE_API_SECRET", value=settings.kite_api_secret or "", type="password"
             )
-            openai_key = st.text_input(
-                "OPENAI_API_KEY", value=settings.openai_api_key or "", type="password"
+            finnhub_key = st.text_input(
+                "FINNHUB_API_KEY", value=settings.finnhub_api_key or "", type="password"
             )
             if st.button("Save to .env"):
                 updates = {}
@@ -107,16 +111,16 @@ def _setup_sidebar(settings) -> None:
                     updates["KITE_API_KEY"] = api_key.strip()
                 if api_secret.strip():
                     updates["KITE_API_SECRET"] = api_secret.strip()
-                if openai_key.strip():
-                    updates["OPENAI_API_KEY"] = openai_key.strip()
+                if finnhub_key.strip():
+                    updates["FINNHUB_API_KEY"] = finnhub_key.strip()
                 if updates:
                     upsert_env(updates)
-                    st.success("Saved — reboot app if on Cloud use Secrets instead.")
+                    st.success("Saved — on Cloud put keys in Streamlit Secrets instead.")
                 else:
                     st.info("Nothing to save.")
 
         st.markdown("---")
-        st.caption("OpenAI: " + ("ready" if settings.openai_ready else "missing (rules-only fallback)"))
+        st.caption("Secrets: Kite + Finnhub. No OpenAI required.")
 
 
 def main() -> None:
@@ -131,7 +135,13 @@ def main() -> None:
 Two buttons only:
 
 1. **Sell profits** — read your Kite holdings; if any are **≥30%** up, place a **sell**; otherwise leave them  
-2. **Buy with capital** — research **2–3 medium established** stocks (MA + rules + OpenAI/news), split your money, place **buys**
+2. **Buy with capital** — research **2–3 medium established** stocks using:
+   - Rule voters (SMA / EMA / RSI / trend / momentum / volume)  
+   - **Finnhub** live company + market news  
+   - **Kite** live quotes  
+   - Split your money and place **buys**  
+
+No ChatGPT / OpenAI in this flow.
 """
     )
 
@@ -139,7 +149,7 @@ Two buttons only:
     c1, c2, c3 = st.columns(3)
     c1.metric("Paper mode", "ON" if settings.paper_mode else "OFF")
     c2.metric("Kite", "connected" if kite.get("ok") else "not connected")
-    c3.metric("OpenAI", "ready" if settings.openai_ready else "off")
+    c3.metric("Finnhub", "ready" if settings.finnhub_ready else "add key")
 
     st.markdown("---")
     st.subheader("1 · Auto-sell ≥30% profits")
@@ -176,8 +186,8 @@ Two buttons only:
     st.markdown("---")
     st.subheader("2 · Research & buy 2–3 stocks")
     st.caption(
-        "Universe: medium established NSE names. Scoring: SMA/EMA/RSI/trend/momentum/volume + OpenAI with latest news. "
-        "Capital is split equally."
+        "Universe: medium established NSE names. Scoring: SMA/EMA/RSI/trend/momentum/volume "
+        "+ Finnhub news + Kite live LTP. Capital is split equally."
     )
     col_a, col_b = st.columns([2, 1])
     with col_a:
@@ -228,16 +238,26 @@ Two buttons only:
                         "stop": p.get("stop"),
                         "target": p.get("target"),
                         "rules": p.get("rule_buys"),
-                        "why": p.get("llm_note"),
+                        "why": p.get("pick_note"),
                     }
                 )
             st.dataframe(pd.DataFrame(show), hide_index=True, use_container_width=True)
             for p in buy_report["picks"]:
                 news = p.get("news") or []
                 if news:
-                    with st.expander(f"News · {p.get('symbol')}"):
+                    with st.expander(f"Finnhub news · {p.get('symbol')}"):
                         for n in news:
                             st.write(f"- {n}")
+                q = p.get("kite_quote")
+                if q:
+                    st.caption(
+                        f"{p.get('symbol')} Kite — LTP {q.get('ltp')} · "
+                        f"O {q.get('open')} H {q.get('high')} L {q.get('low')} C {q.get('close')}"
+                    )
+            if buy_report.get("market_news"):
+                with st.expander("Finnhub market news"):
+                    for n in buy_report["market_news"]:
+                        st.write(f"- {n.get('headline')}")
         if buy_report.get("orders"):
             st.markdown("**Orders**")
             st.dataframe(pd.DataFrame(buy_report["orders"]), hide_index=True, use_container_width=True)

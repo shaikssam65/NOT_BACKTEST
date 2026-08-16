@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 from datetime import date, timedelta
@@ -144,119 +143,198 @@ def auto_sell_profits(
 
 
 def _fetch_news_headlines(symbol: str, limit: int = 5) -> list[str]:
-    """Best-effort headlines for the LLM (Yahoo RSS / yfinance)."""
-    headlines: list[str] = []
-    # Yahoo Finance RSS
-    try:
-        url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={symbol}.NS&region=US&lang=en-US"
-        with httpx.Client(timeout=8.0, follow_redirects=True) as client:
-            r = client.get(url)
-            if r.status_code == 200 and "<title>" in r.text:
-                import re
+    """Deprecated stub — use Finnhub helpers."""
+    return []
 
-                titles = re.findall(r"<title>(.*?)</title>", r.text, flags=re.I | re.S)
-                for t in titles[1 : limit + 1]:  # skip channel title
-                    clean = (
-                        t.replace("<![CDATA[", "")
-                        .replace("]]>", "")
-                        .replace("&amp;", "&")
-                        .strip()
+
+_POS = (
+    "profit", "growth", "surge", "rally", "upgrade", "beat", "strong", "record",
+    "win", "rise", "gain", "positive", "expansion", "order", "deal", "buy",
+)
+_NEG = (
+    "loss", "fall", "drop", "downgrade", "miss", "weak", "fraud", "probe",
+    "ban", "fine", "decline", "cut", "warn", "negative", "slump", "sell",
+)
+
+
+def fetch_finnhub_news(symbol: str, settings: Settings, *, limit: int = 6) -> list[dict[str, Any]]:
+    """Company news from Finnhub (NSE symbol tried as SYMBOL.NS)."""
+    if not settings.finnhub_ready:
+        return []
+    token = settings.finnhub_api_key
+    assert token
+    end = date.today()
+    start = end - timedelta(days=14)
+    symbols_try = [f"{symbol.upper()}.NS", symbol.upper()]
+    out: list[dict[str, Any]] = []
+    with httpx.Client(timeout=12.0) as client:
+        for sym in symbols_try:
+            try:
+                r = client.get(
+                    "https://finnhub.io/api/v1/company-news",
+                    params={
+                        "symbol": sym,
+                        "from": start.isoformat(),
+                        "to": end.isoformat(),
+                        "token": token,
+                    },
+                )
+                if r.status_code != 200:
+                    continue
+                rows = r.json()
+                if not isinstance(rows, list) or not rows:
+                    continue
+                for item in rows[:limit]:
+                    headline = str(item.get("headline") or item.get("summary") or "").strip()
+                    if not headline:
+                        continue
+                    out.append(
+                        {
+                            "headline": headline[:240],
+                            "source": item.get("source") or "finnhub",
+                            "url": item.get("url") or "",
+                            "datetime": item.get("datetime"),
+                        }
                     )
-                    if clean and clean not in headlines:
-                        headlines.append(clean[:200])
-    except Exception:
-        logger.debug("RSS news failed for %s", symbol, exc_info=True)
+                if out:
+                    break
+            except Exception:
+                logger.debug("Finnhub news failed for %s", sym, exc_info=True)
+    return out[:limit]
 
-    if headlines:
-        return headlines[:limit]
 
-    # yfinance fallback
+def fetch_finnhub_market_news(settings: Settings, *, limit: int = 8) -> list[dict[str, Any]]:
+    """General market news from Finnhub (India/general)."""
+    if not settings.finnhub_ready:
+        return []
+    token = settings.finnhub_api_key
+    assert token
     try:
-        import yfinance as yf
-
-        items = yf.Ticker(f"{symbol}.NS").news or []
-        for item in items[:limit]:
-            title = (item.get("title") or item.get("content", {}).get("title") or "").strip()
-            if title:
-                headlines.append(title[:200])
+        with httpx.Client(timeout=12.0) as client:
+            r = client.get(
+                "https://finnhub.io/api/v1/news",
+                params={"category": "general", "token": token},
+            )
+            if r.status_code != 200:
+                return []
+            rows = r.json()
+            if not isinstance(rows, list):
+                return []
+            out = []
+            for item in rows[:limit]:
+                headline = str(item.get("headline") or "").strip()
+                if headline:
+                    out.append(
+                        {
+                            "headline": headline[:240],
+                            "source": item.get("source") or "finnhub",
+                            "url": item.get("url") or "",
+                        }
+                    )
+            return out
     except Exception:
-        logger.debug("yfinance news failed for %s", symbol, exc_info=True)
-    return headlines[:limit]
+        logger.exception("Finnhub market news failed")
+        return []
 
 
-def _llm_rank_with_news(
+def fetch_kite_quote(symbol: str, settings: Settings) -> dict[str, Any] | None:
+    """Live quote / OHLC from Kite (used as live 'report' for the name)."""
+    if not settings.kite_ready:
+        return None
+    try:
+        kite = kite_client(settings)
+        key = f"NSE:{symbol.upper()}"
+        raw = kite.quote([key]) or {}
+        payload = raw.get(key) or raw.get(symbol.upper())
+        if not isinstance(payload, dict):
+            return None
+        ohlc = payload.get("ohlc") or {}
+        return {
+            "ltp": float(payload.get("last_price") or 0),
+            "open": float(ohlc.get("open") or 0),
+            "high": float(ohlc.get("high") or 0),
+            "low": float(ohlc.get("low") or 0),
+            "close": float(ohlc.get("close") or 0),
+            "volume": payload.get("volume"),
+            "oi": payload.get("oi"),
+            "change": payload.get("net_change") or payload.get("change"),
+        }
+    except Exception:
+        logger.debug("Kite quote failed for %s", symbol, exc_info=True)
+        return None
+
+
+def _news_sentiment_score(headlines: list[str]) -> float:
+    """Simple keyword sentiment in [-1, +1]."""
+    if not headlines:
+        return 0.0
+    pos = neg = 0
+    for h in headlines:
+        low = h.lower()
+        pos += sum(1 for w in _POS if w in low)
+        neg += sum(1 for w in _NEG if w in low)
+    total = pos + neg
+    if total == 0:
+        return 0.05 * min(len(headlines), 5)  # slight boost for having coverage
+    return (pos - neg) / total
+
+
+def rank_with_finnhub_and_kite(
     candidates: list[dict[str, Any]],
     settings: Settings,
     *,
     pick_count: int,
+    progress: ProgressCb | None = None,
 ) -> list[dict[str, Any]]:
-    """Ask OpenAI to pick best 2–3 using rule scores + news. Falls back to rule rank."""
+    """
+    Rank by rule score + Finnhub news sentiment + Kite live quote momentum.
+    No ChatGPT / OpenAI.
+    """
+    log = progress or _noop
     if not candidates:
         return []
-    if not settings.openai_ready:
-        ranked = sorted(candidates, key=lambda c: c["rule_score"], reverse=True)
-        for c in ranked:
-            c["llm_note"] = "OpenAI key missing — ranked by rules only"
-        return ranked[:pick_count]
 
-    payload = []
+    enriched: list[dict[str, Any]] = []
     for c in candidates:
-        payload.append(
-            {
-                "symbol": c["symbol"],
-                "price": c["price"],
-                "rank": c["rank"],
-                "rule_score": c["rule_score"],
-                "rule_buys": c["rule_buys"],
-                "rule_votes": c["rule_votes"],
-                "news": c.get("news") or [],
-            }
+        sym = c["symbol"]
+        news_rows = fetch_finnhub_news(sym, settings)
+        headlines = [n["headline"] for n in news_rows]
+        sent = _news_sentiment_score(headlines)
+        quote = fetch_kite_quote(sym, settings)
+        live_boost = 0.0
+        live_price = c["price"]
+        if quote and quote.get("ltp"):
+            live_price = float(quote["ltp"])
+            prev = float(quote.get("close") or 0)
+            if prev > 0:
+                day_chg = (live_price - prev) / prev * 100.0
+                live_boost = max(-5.0, min(8.0, day_chg))  # mild day-move tilt
+        combined = (
+            float(c["rule_score"])
+            + float(c["rule_buys"]) * 4.0
+            + sent * 12.0
+            + live_boost
         )
-    system = (
-        "You are an NSE cash-equity research assistant for medium established stocks. "
-        "Pick the best names for a short-horizon swing using ONLY the provided rule scores and news. "
-        f"Return JSON: {{\"picks\":[{{\"symbol\":\"X\",\"confidence\":0-100,\"reason\":\"short\"}}]}} "
-        f"Return at most {pick_count} picks, highest quality first. Prefer clear uptrend + supportive news. "
-        "If news is empty, rely on rules. Never invent prices."
-    )
-    try:
-        from openai import OpenAI
+        note_bits = [
+            f"rules {c['rule_buys']}/6 score {c['rule_score']:.0f}",
+            f"news_sent {sent:+.2f} ({len(headlines)} articles)",
+        ]
+        if quote and quote.get("ltp"):
+            note_bits.append(f"kite LTP {live_price:.2f}")
+        row = dict(c)
+        row["price"] = round(live_price, 2)
+        row["news"] = headlines
+        row["news_detail"] = news_rows
+        row["kite_quote"] = quote
+        row["news_sentiment"] = round(sent, 3)
+        row["combined_score"] = round(combined, 2)
+        row["pick_note"] = " · ".join(note_bits)
+        enriched.append(row)
+        log(f"  {sym}: {row['pick_note']}")
 
-        client = OpenAI(api_key=settings.openai_api_key, timeout=settings.ai.timeout_seconds)
-        resp = client.chat.completions.create(
-            model=settings.ai.model,
-            temperature=0.2,
-            max_tokens=500,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": json.dumps({"candidates": payload}, default=str)},
-            ],
-        )
-        content = resp.choices[0].message.content or "{}"
-        data = json.loads(content)
-        picks_raw = data.get("picks") or []
-        by_sym = {c["symbol"]: c for c in candidates}
-        chosen: list[dict[str, Any]] = []
-        for p in picks_raw:
-            sym = str(p.get("symbol") or "").upper()
-            if sym not in by_sym:
-                continue
-            row = dict(by_sym[sym])
-            row["llm_confidence"] = int(p.get("confidence") or 60)
-            row["llm_note"] = str(p.get("reason") or "LLM pick")[:300]
-            chosen.append(row)
-            if len(chosen) >= pick_count:
-                break
-        if chosen:
-            return chosen
-    except Exception:
-        logger.exception("OpenAI ranking failed — falling back to rules")
-
-    ranked = sorted(candidates, key=lambda c: c["rule_score"], reverse=True)
-    for c in ranked:
-        c["llm_note"] = "LLM failed — ranked by rules only"
-    return ranked[:pick_count]
+    enriched.sort(key=lambda x: x["combined_score"], reverse=True)
+    # Prefer non-negative news when scores are close
+    return enriched[:pick_count]
 
 
 def research_and_buy(
@@ -270,8 +348,8 @@ def research_and_buy(
     progress: ProgressCb | None = None,
 ) -> dict[str, Any]:
     """
-    Research medium established stocks with MA + rule voters + OpenAI/news,
-    then split capital across 2–3 names and place BUY orders.
+    Research medium established stocks with MA + rule voters + Finnhub news + Kite live quotes,
+    then split capital across 2–3 names and place BUY orders. No OpenAI.
     """
     log = progress or _noop
     as_of = as_of or date.today()
@@ -306,7 +384,6 @@ def research_and_buy(
         buy_n = sum(1 for v in votes.values() if v == "buy")
         if signal != "buy" and buy_n < 2:
             continue
-        # Soft accept high scores even if signal hold
         if signal != "buy" and score < 60:
             continue
         scored.append(
@@ -329,12 +406,15 @@ def research_and_buy(
     shortlist = scored[:12]
     log(f"  Rule shortlist: {len(shortlist)} / scanned {scanned}")
 
-    log("Step 2 — Fetch news + OpenAI pick…")
-    for c in shortlist:
-        c["news"] = _fetch_news_headlines(c["symbol"])
-        log(f"  {c['symbol']}: rules={c['rule_buys']}/6 score={c['rule_score']:.0f} news={len(c['news'])}")
+    if settings.finnhub_ready:
+        log("Step 2 — Finnhub company news + Kite live quotes…")
+    else:
+        log("Step 2 — Finnhub key missing → rules + Kite quotes only (add FINNHUB_API_KEY)…")
 
-    picks = _llm_rank_with_news(shortlist, settings, pick_count=pick_count)
+    market_news = fetch_finnhub_market_news(settings)
+    picks = rank_with_finnhub_and_kite(
+        shortlist, settings, pick_count=pick_count, progress=log
+    )
     log(f"Step 3 — Final picks: {[p['symbol'] for p in picks] or ['none']}")
 
     if not picks:
@@ -343,12 +423,13 @@ def research_and_buy(
             "mode": mode,
             "capital": capital,
             "scanned": scanned,
+            "market_news": market_news,
             "shortlist": [
                 {k: v for k, v in c.items() if k != "snap"} for c in shortlist[:8]
             ],
             "picks": [],
             "orders": [],
-            "note": "No stocks passed rules + LLM filter today.",
+            "note": "No stocks passed rules + Finnhub/Kite filter today.",
         }
 
     slice_cap = capital / len(picks)
@@ -369,8 +450,10 @@ def research_and_buy(
             "stop": round(stop, 2),
             "target": round(target, 2),
             "rule_buys": p.get("rule_buys"),
-            "llm_note": p.get("llm_note"),
+            "pick_note": p.get("pick_note"),
             "news": p.get("news") or [],
+            "kite_quote": p.get("kite_quote"),
+            "news_sentiment": p.get("news_sentiment"),
         }
         plans.append(plan)
         if qty <= 0:
@@ -400,11 +483,12 @@ def research_and_buy(
         "capital": capital,
         "slice_capital": round(slice_cap, 2),
         "scanned": scanned,
+        "market_news": market_news,
         "picks": plans,
         "orders": orders,
         "rule_voters": [name for name, _ in RULE_COMBO_VOTERS],
         "note": (
-            f"Bought with rules (MA/EMA/RSI/trend/…) + OpenAI/news. "
+            "Rules (MA/EMA/RSI/…) + Finnhub news + Kite live quotes. No ChatGPT. "
             + ("PAPER fills only." if settings.paper_mode else "LIVE orders sent.")
         ),
     }
