@@ -238,7 +238,7 @@ def fetch_finnhub_market_news(settings: Settings, *, limit: int = 8) -> list[dic
 
 
 def fetch_kite_quote(symbol: str, settings: Settings) -> dict[str, Any] | None:
-    """Live quote / OHLC from Kite (used as live 'report' for the name)."""
+    """Live quote / OHLC from Kite (used as live report when Finnhub has no news)."""
     if not settings.kite_ready:
         return None
     try:
@@ -249,19 +249,45 @@ def fetch_kite_quote(symbol: str, settings: Settings) -> dict[str, Any] | None:
         if not isinstance(payload, dict):
             return None
         ohlc = payload.get("ohlc") or {}
+        ltp = float(payload.get("last_price") or 0)
+        prev = float(ohlc.get("close") or 0)
+        day_chg_pct = ((ltp - prev) / prev * 100.0) if prev > 0 and ltp > 0 else 0.0
+        high = float(ohlc.get("high") or 0)
+        low = float(ohlc.get("low") or 0)
+        day_range_pct = ((high - low) / prev * 100.0) if prev > 0 and high > low else 0.0
         return {
-            "ltp": float(payload.get("last_price") or 0),
+            "ltp": ltp,
             "open": float(ohlc.get("open") or 0),
-            "high": float(ohlc.get("high") or 0),
-            "low": float(ohlc.get("low") or 0),
-            "close": float(ohlc.get("close") or 0),
+            "high": high,
+            "low": low,
+            "close": prev,
             "volume": payload.get("volume"),
+            "average_price": payload.get("average_price"),
             "oi": payload.get("oi"),
             "change": payload.get("net_change") or payload.get("change"),
+            "day_chg_pct": round(day_chg_pct, 3),
+            "day_range_pct": round(day_range_pct, 3),
         }
     except Exception:
         logger.debug("Kite quote failed for %s", symbol, exc_info=True)
         return None
+
+
+def _kite_report_lines(symbol: str, quote: dict[str, Any]) -> list[str]:
+    """Human-readable Kite live report used when Finnhub returns no news."""
+    lines = [
+        f"Kite live {symbol}: LTP {quote.get('ltp')}",
+        (
+            f"OHLC O {quote.get('open')} H {quote.get('high')} "
+            f"L {quote.get('low')} C {quote.get('close')}"
+        ),
+        f"Day change {quote.get('day_chg_pct')}% · range {quote.get('day_range_pct')}%",
+    ]
+    if quote.get("volume") is not None:
+        lines.append(f"Volume {quote.get('volume')}")
+    if quote.get("average_price") is not None:
+        lines.append(f"Avg traded price {quote.get('average_price')}")
+    return lines
 
 
 def _news_sentiment_score(headlines: list[str]) -> float:
@@ -287,8 +313,8 @@ def rank_with_finnhub_and_kite(
     progress: ProgressCb | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Rank by rule score + Finnhub news sentiment + Kite live quote momentum.
-    No ChatGPT / OpenAI.
+    Rank by rule score + Finnhub news (if any) + Kite live quote.
+    If Finnhub gives no data for a symbol, fall back fully to Kite quote report.
     """
     log = progress or _noop
     if not candidates:
@@ -299,41 +325,62 @@ def rank_with_finnhub_and_kite(
         sym = c["symbol"]
         news_rows = fetch_finnhub_news(sym, settings)
         headlines = [n["headline"] for n in news_rows]
-        sent = _news_sentiment_score(headlines)
         quote = fetch_kite_quote(sym, settings)
+        data_source = "finnhub+kite" if headlines else "kite_fallback"
+
         live_boost = 0.0
-        live_price = c["price"]
+        live_price = float(c["price"])
+        sent = 0.0
+
         if quote and quote.get("ltp"):
             live_price = float(quote["ltp"])
-            prev = float(quote.get("close") or 0)
-            if prev > 0:
-                day_chg = (live_price - prev) / prev * 100.0
-                live_boost = max(-5.0, min(8.0, day_chg))  # mild day-move tilt
+            day_chg = float(quote.get("day_chg_pct") or 0.0)
+            # Stronger weight when Finnhub is empty
+            cap = 12.0 if not headlines else 8.0
+            live_boost = max(-6.0, min(cap, day_chg))
+            # Mild preference for trading above prior close when no news
+            if not headlines and day_chg > 0:
+                live_boost += min(3.0, day_chg * 0.25)
+
+        if headlines:
+            sent = _news_sentiment_score(headlines)
+            news_weight = 12.0
+        else:
+            # No Finnhub → synthesise context from Kite only
+            if quote:
+                headlines = _kite_report_lines(sym, quote)
+                news_rows = [{"headline": h, "source": "kite", "url": ""} for h in headlines]
+                sent = max(-1.0, min(1.0, live_boost / 10.0))
+            news_weight = 0.0  # already in live_boost
+
         combined = (
             float(c["rule_score"])
             + float(c["rule_buys"]) * 4.0
-            + sent * 12.0
-            + live_boost
+            + sent * news_weight
+            + live_boost * (1.6 if data_source == "kite_fallback" else 1.0)
         )
         note_bits = [
             f"rules {c['rule_buys']}/6 score {c['rule_score']:.0f}",
-            f"news_sent {sent:+.2f} ({len(headlines)} articles)",
+            f"source={data_source}",
         ]
+        if data_source.startswith("finnhub"):
+            note_bits.append(f"news_sent {sent:+.2f} ({len([n for n in news_rows if n.get('source') != 'kite'])} articles)")
         if quote and quote.get("ltp"):
-            note_bits.append(f"kite LTP {live_price:.2f}")
+            note_bits.append(f"kite LTP {live_price:.2f} day {quote.get('day_chg_pct')}%")
+
         row = dict(c)
         row["price"] = round(live_price, 2)
         row["news"] = headlines
         row["news_detail"] = news_rows
         row["kite_quote"] = quote
         row["news_sentiment"] = round(sent, 3)
+        row["data_source"] = data_source
         row["combined_score"] = round(combined, 2)
         row["pick_note"] = " · ".join(note_bits)
         enriched.append(row)
         log(f"  {sym}: {row['pick_note']}")
 
     enriched.sort(key=lambda x: x["combined_score"], reverse=True)
-    # Prefer non-negative news when scores are close
     return enriched[:pick_count]
 
 
@@ -407,11 +454,19 @@ def research_and_buy(
     log(f"  Rule shortlist: {len(shortlist)} / scanned {scanned}")
 
     if settings.finnhub_ready:
-        log("Step 2 — Finnhub company news + Kite live quotes…")
+        log("Step 2 — Finnhub news (fallback → Kite live quote if empty)…")
     else:
-        log("Step 2 — Finnhub key missing → rules + Kite quotes only (add FINNHUB_API_KEY)…")
+        log("Step 2 — No Finnhub key → using Kite live quotes only…")
 
     market_news = fetch_finnhub_market_news(settings)
+    if not market_news and settings.kite_ready:
+        market_news = [
+            {
+                "headline": "Finnhub market news empty — ranking uses Kite live quotes + rules",
+                "source": "kite_fallback",
+                "url": "",
+            }
+        ]
     picks = rank_with_finnhub_and_kite(
         shortlist, settings, pick_count=pick_count, progress=log
     )
@@ -488,7 +543,7 @@ def research_and_buy(
         "orders": orders,
         "rule_voters": [name for name, _ in RULE_COMBO_VOTERS],
         "note": (
-            "Rules (MA/EMA/RSI/…) + Finnhub news + Kite live quotes. No ChatGPT. "
+            "Rules + Finnhub news when available; else Kite live quotes. No ChatGPT. "
             + ("PAPER fills only." if settings.paper_mode else "LIVE orders sent.")
         ),
     }

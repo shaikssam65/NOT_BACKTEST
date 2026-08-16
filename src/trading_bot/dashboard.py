@@ -239,13 +239,16 @@ No ChatGPT / OpenAI in this flow.
                         "target": p.get("target"),
                         "rules": p.get("rule_buys"),
                         "why": p.get("pick_note"),
+                        "source": p.get("data_source"),
                     }
                 )
             st.dataframe(pd.DataFrame(show), hide_index=True, use_container_width=True)
             for p in buy_report["picks"]:
+                src = p.get("data_source") or ""
+                label = "Finnhub news" if "finnhub" in src else "Kite live report"
                 news = p.get("news") or []
                 if news:
-                    with st.expander(f"Finnhub news · {p.get('symbol')}"):
+                    with st.expander(f"{label} · {p.get('symbol')}"):
                         for n in news:
                             st.write(f"- {n}")
                 q = p.get("kite_quote")
