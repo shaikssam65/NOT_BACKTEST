@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 
 import pandas as pd
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 
 from trading_bot.backtest import VALID_STRATEGIES, backtest
 from trading_bot.config import ROOT, load_settings
+from trading_bot.data_provider import as_date
 from trading_bot.export_backtest import (
     equity_frame,
     summary_frame,
@@ -28,7 +30,6 @@ from trading_bot.kite_auth import (
 from trading_bot.runtime import boot, build_provider
 from trading_bot.selection import list_selections, run_daily_selection
 from trading_bot.universe import get_universe
-from trading_bot.data_provider import as_date
 
 # set_page_config lives in app.py (must be first Streamlit call on Cloud).
 # Local `python -m trading_bot dashboard` still needs it here when this file is the entry.
@@ -38,8 +39,17 @@ except st.errors.StreamlitAPIException:
     pass
 
 
+def _restore_kite_token_from_session() -> None:
+    """Streamlit Cloud cannot rely on .env; keep the daily token in session_state."""
+    token = st.session_state.get("kite_access_token")
+    if token:
+        os.environ["KITE_ACCESS_TOKEN"] = str(token)
+
+
 def _boot():
-    load_dotenv(ROOT / ".env", override=True)
+    # Never override=True — that wipes Streamlit Secrets already loaded into os.environ.
+    load_dotenv(ROOT / ".env", override=False)
+    _restore_kite_token_from_session()
     settings, conn = boot()
     provider = build_provider(settings, conn)
     return settings, conn, provider
@@ -61,7 +71,11 @@ def _consume_kite_callback(settings) -> None:
         return
     try:
         session = exchange_request_token(str(token), settings)
-        load_dotenv(ROOT / ".env", override=True)
+        access = session.get("access_token")
+        if access:
+            st.session_state["kite_access_token"] = access
+            os.environ["KITE_ACCESS_TOKEN"] = str(access)
+        load_dotenv(ROOT / ".env", override=False)
         st.query_params.clear()
         st.session_state["kite_flash"] = (
             f"Kite connected as {session.get('user_name') or session.get('user_id')}."
@@ -94,7 +108,6 @@ def _setup_tab(settings) -> None:
     if st.button("Use this URL as KITE_REDIRECT_URL"):
         url = cloud_redirect.strip().rstrip("/") + "/"
         upsert_env({"KITE_REDIRECT_URL": url})
-        load_dotenv(ROOT / ".env", override=True)
         st.success(f"Saved redirect URL: {url}")
         st.rerun()
 
@@ -145,7 +158,10 @@ Description:       Personal NSE cash-equity research and paper-trading bot.""",
     kite_key = st.text_input("Kite API key", type="password", placeholder="from your Kite app page")
     kite_secret = st.text_input("Kite API secret", type="password", placeholder="from your Kite app page")
     if st.button("Save keys", type="primary"):
-        updates: dict[str, str] = {"PAPER_MODE": "true", "KITE_REDIRECT_URL": DEFAULT_REDIRECT_URL}
+        updates: dict[str, str] = {"PAPER_MODE": "true"}
+        # Keep Cloud redirect if already set; only default to localhost when unset.
+        if not (os.getenv("KITE_REDIRECT_URL") or "").startswith("https://"):
+            updates["KITE_REDIRECT_URL"] = DEFAULT_REDIRECT_URL
         if openai_in.strip():
             updates["OPENAI_API_KEY"] = openai_in.strip()
         if kite_key.strip():
@@ -153,8 +169,7 @@ Description:       Personal NSE cash-equity research and paper-trading bot.""",
         if kite_secret.strip():
             updates["KITE_API_SECRET"] = kite_secret.strip()
         upsert_env(updates)
-        load_dotenv(ROOT / ".env", override=True)
-        st.success("Saved. Click Connect Kite next.")
+        st.success("Saved. On Streamlit Cloud, prefer App → Settings → Secrets for permanent keys.")
         st.rerun()
 
     settings = load_settings()
@@ -173,7 +188,8 @@ Description:       Personal NSE cash-equity research and paper-trading bot.""",
         )
         if st.button("Disconnect Kite"):
             clear_session()
-            load_dotenv(ROOT / ".env", override=True)
+            st.session_state.pop("kite_access_token", None)
+            os.environ.pop("KITE_ACCESS_TOKEN", None)
             st.rerun()
     else:
         reason = status.get("reason")
@@ -380,6 +396,7 @@ def _quotes_tab(settings, conn) -> None:
 def main() -> None:
     settings, conn, provider = _boot()
     _consume_kite_callback(settings)
+    _restore_kite_token_from_session()
     settings = load_settings()
 
     st.title("NSE cash-equity bot")
@@ -400,12 +417,15 @@ def main() -> None:
     c3.metric("Kite", "connected" if kite.get("ok") else "not connected")
     c4.metric("Universe", len(get_universe(conn)))
 
-    # Clear next-step banner so the page never looks “empty”.
-    if not kite.get("ok"):
+    if kite.get("ok"):
+        st.info(
+            "Kite connected. Open **Backtest** (prefers Kite history) or **Daily selection**. "
+            "Still no live orders while PAPER_MODE is on."
+        )
+    else:
         st.warning(
-            "**Nothing to trade yet — and that is correct.** "
-            "This app does not auto-trade. Next: open **Setup & Kite** → **Connect Kite**, "
-            "then use **Backtest** or **Daily selection**."
+            "**Kite is not connected yet.** Open **Setup & Kite** → **Connect Kite**, "
+            "then run Backtest. This app does not auto-trade."
         )
         if settings.kite_api_key and settings.kite_api_secret:
             st.link_button(
@@ -414,18 +434,20 @@ def main() -> None:
                 type="primary",
             )
         else:
-            st.error("Add KITE_API_KEY and KITE_API_SECRET in Streamlit **Secrets**, then reboot the app.")
-    else:
-        st.info(
-            "Kite connected. Open **Backtest** to simulate a stock, or **Daily selection** to pick today’s names. "
-            "Still no live orders while PAPER_MODE is on."
-        )
+            st.error(
+                "Put `KITE_API_KEY` and `KITE_API_SECRET` in Streamlit **Secrets**, then reboot. "
+                "On Cloud, Secrets are required — the on-page Save form is not enough alone."
+            )
 
     redirect = kite_redirect_url(settings)
-    if "YOUR-APP-NAME" in redirect or redirect.rstrip("/") == "http://127.0.0.1:8501":
+    on_cloud = (
+        os.getenv("STREAMLIT_RUNTIME_ENV", "").lower() == "cloud"
+        or "STREAMLIT_SHARING_MODE" in os.environ
+    )
+    if "YOUR-APP-NAME" in redirect or (on_cloud and not redirect.startswith("https://")):
         st.error(
-            "Set `KITE_REDIRECT_URL = \"https://backtestind.streamlit.app/\"` in Streamlit Secrets "
-            "and the same URL on the Kite app Redirect URL, then reboot."
+            'Set `KITE_REDIRECT_URL = "https://backtestind.streamlit.app/"` in Streamlit Secrets '
+            "and the same URL on the Kite app, then reboot."
         )
 
     tab_setup, tab_bt, tab_sel, tab_px = st.tabs(
