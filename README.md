@@ -40,14 +40,28 @@ Research / Suggest uses **rules only** (plus Finnhub news when available, and Ki
 
 | Filter | Rule |
 | --- | --- |
-| **Stock list** | Official NSE index constituents (union ≈ **Nifty 500**). Bundled seed: `nse_nifty500.csv` |
-| **Index filters** | Multi-select any of: Nifty 50, Next 50, 100, 200, Midcap 50/100/150, Smallcap 50/100/250, Nifty 500. Stock must be in **at least one** selected index |
-| Price bands | User multi-select: `0-50`, `50-100`, `100-200`, `200-500`, `500-1000`, `1000-5000` (₹) |
-| Enough history | Need enough daily bars for indicators (SMA slow + buffer) |
+| **Stock list** | Official NSE index constituents (union ≈ **Nifty Total Market ~750**). Seed: `nse_universe.csv` |
+| **Index filters** | Multi-select any combination below. Stock must be in **at least one** selected index |
+| Price bands | `0-50` … `1000-5000` (₹) — multi-select |
+| Enough history | Need enough daily bars for indicators |
 
-Click **Refresh index lists** in the app to re-download the latest NSE CSVs.
+**Available indexes**
 
-**Tip for under ₹100:** include **Nifty Smallcap 100/250** (and Midcap) — large-cap-only indexes have almost no names under ₹100.
+| Index | Approx size | Notes |
+| --- | --- | --- |
+| Nifty 50 / Next 50 / 100 / 200 / 500 | 50–500 | Large & upper mid |
+| Nifty Midcap 50 / 100 / 150 | 50–150 | Mid caps |
+| Nifty Smallcap 50 / 100 / 250 | 50–250 | Small caps (50/100 = more liquid subsets) |
+| Nifty MidSmallcap 400 | 400 | Mid + small in one list |
+| Nifty Microcap 250 | ~250 | Next 250 after Nifty 500 — smaller/newer names |
+| Nifty Smallcap250 Quality 50 | 50 | Quality screen (ROE, leverage, EPS stability) |
+| Nifty Smallcap250 Momentum Quality 100 | 100 | 6m/12m momentum + quality — strong for trading bots |
+| Nifty Total Market | ~750 | Full broad market |
+
+Click **Refresh index lists** to re-download latest NSE CSVs.
+
+**Tip for under ₹100 / smaller names:** prefer **Microcap 250**, **Smallcap 100/250**, **Quality 50**, or **Momentum Quality 100**.
+
 
 
 

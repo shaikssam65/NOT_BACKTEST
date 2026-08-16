@@ -352,8 +352,9 @@ def main() -> None:
     st.markdown("---")
     st.subheader("2 · Research 2–3 stocks")
     st.caption(
-        "Universe: **Nifty indices** (union ≈ Nifty 500). Pick one or more indexes + price ranges, "
-        "then Suggest only or Place buy orders."
+        "Universe: **Nifty indexes** (union ≈ Total Market ~750). Pick indexes + price ranges, "
+        "then Suggest only or Place buy orders. For smaller names try Microcap 250 / "
+        "Smallcap Momentum Quality 100 / Quality 50."
     )
     index_filters = st.multiselect(
         "NSE indexes — pick any / multiple",

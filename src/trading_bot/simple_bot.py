@@ -22,7 +22,7 @@ ProgressCb = Callable[[str], None]
 
 # Prefer liquid mid-large names when no index filter is passed (legacy).
 MIN_RANK = 1
-MAX_RANK = 500
+MAX_RANK = 800
 DEFAULT_PICKS = 3
 PROFIT_SELL_PCT = 30.0
 STOP_PCT = 8.0

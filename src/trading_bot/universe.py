@@ -21,7 +21,7 @@ NSE_HEADERS = {
     "Referer": "https://www.nseindia.com/",
 }
 
-# Broad-market NSE indices used as research filters (union ≈ Nifty 500).
+# Broad-market + strategy NSE indices used as research filters (union ≈ Total Market).
 NSE_INDEX_FILES: list[tuple[str, str]] = [
     ("Nifty 50", "ind_nifty50list.csv"),
     ("Nifty Next 50", "ind_niftynext50list.csv"),
@@ -34,11 +34,17 @@ NSE_INDEX_FILES: list[tuple[str, str]] = [
     ("Nifty Smallcap 100", "ind_niftysmallcap100list.csv"),
     ("Nifty Smallcap 250", "ind_niftysmallcap250list.csv"),
     ("Nifty 500", "ind_nifty500list.csv"),
+    ("Nifty MidSmallcap 400", "ind_niftymidsmallcap400list.csv"),
+    ("Nifty Microcap 250", "ind_niftymicrocap250_list.csv"),
+    ("Nifty Smallcap250 Quality 50", "ind_niftySmallcap250_Quality50_list.csv"),
+    ("Nifty Smallcap250 Momentum Quality 100", "ind_niftySmallcap250MomentumQuality100_list.csv"),
+    ("Nifty Total Market", "ind_niftytotalmarket_list.csv"),
 ]
 INDEX_LABELS: list[str] = [label for label, _ in NSE_INDEX_FILES]
-# Default: all indexes selected (unique pool ≈ Nifty 500).
+# Default: all indexes selected (unique pool ≈ Nifty Total Market ~750).
 DEFAULT_INDEX_FILTERS: list[str] = list(INDEX_LABELS)
-UNIVERSE_LABEL = "NSE Nifty indices (union ≈ Nifty 500)"
+UNIVERSE_LABEL = "NSE Nifty indices (union ≈ Total Market ~750)"
+PRIMARY_INDEX = "Nifty Total Market"
 
 # Yahoo Finance tickers that differ from the NSE symbol.
 YAHOO_OVERRIDES = {
@@ -77,27 +83,24 @@ def _join_indices(indices: list[str] | set[str] | None) -> str:
 
 
 def load_seed_stocks() -> list[UniverseStock]:
-    """Bundled Nifty-500 seed with index membership tags."""
+    """Bundled Total Market seed with index membership tags."""
     data = resources.files("trading_bot.data")
-    try:
-        csv_text = data.joinpath("nse_nifty500.csv").read_text(encoding="utf-8")
-    except (FileNotFoundError, OSError):
-        csv_text = data.joinpath("nse_top200.csv").read_text(encoding="utf-8")
+    csv_text = None
+    for name in ("nse_universe.csv", "nse_nifty500.csv", "nse_top200.csv"):
+        try:
+            csv_text = data.joinpath(name).read_text(encoding="utf-8")
+            break
+        except (FileNotFoundError, OSError):
+            continue
+    if not csv_text:
+        raise FileNotFoundError("No bundled universe CSV found")
     reader = csv.DictReader(io.StringIO(csv_text))
     stocks: list[UniverseStock] = []
     for row in reader:
         symbol = row["symbol"].strip().upper()
         indices = _parse_indices(row.get("indices"))
         if not indices:
-            rank = int(row["rank"])
-            if rank <= 50:
-                indices = ["Nifty 50", "Nifty 100", "Nifty 200", "Nifty 500"]
-            elif rank <= 100:
-                indices = ["Nifty Next 50", "Nifty 100", "Nifty 200", "Nifty 500"]
-            elif rank <= 200:
-                indices = ["Nifty 200", "Nifty 500"]
-            else:
-                indices = ["Nifty 500"]
+            indices = [PRIMARY_INDEX]
         stocks.append(
             UniverseStock(
                 symbol=symbol,
@@ -225,7 +228,7 @@ def _fetch_index_csv(client: httpx.Client, filename: str) -> list[tuple[str, str
 def refresh_universe(conn, settings: Settings | None = None) -> list[UniverseStock]:
     """
     Refresh from all configured NSE index CSVs.
-    Rank order follows Nifty 500; each symbol stores membership tags.
+    Rank order follows Nifty Total Market; each symbol stores membership tags.
     Falls back to bundled seed on network failure.
     """
     del settings
@@ -233,42 +236,78 @@ def refresh_universe(conn, settings: Settings | None = None) -> list[UniverseSto
     try:
         membership: dict[str, set[str]] = {}
         names: dict[str, str] = {}
-        order_500: list[str] = []
+        order_primary: list[str] = []
+        failed: list[str] = []
 
-        with httpx.Client(headers=NSE_HEADERS, timeout=40.0, follow_redirects=True) as client:
+        with httpx.Client(headers=NSE_HEADERS, timeout=60.0, follow_redirects=True) as client:
             try:
                 client.get("https://www.nseindia.com")
             except httpx.HTTPError:
                 pass
             for label, filename in NSE_INDEX_FILES:
-                rows = _fetch_index_csv(client, filename)
+                try:
+                    rows = _fetch_index_csv(client, filename)
+                except Exception as exc:
+                    failed.append(f"{label}: {exc}")
+                    logger.warning("Index fetch failed %s: %s", label, exc)
+                    continue
                 if not rows:
-                    raise RuntimeError(f"empty index CSV: {label}")
+                    failed.append(f"{label}: empty")
+                    continue
                 logger.info("Fetched %s: %s names", label, len(rows))
                 for symbol, name in rows:
                     membership.setdefault(symbol, set()).add(label)
                     names[symbol] = name
-                if label == "Nifty 500":
-                    order_500 = [sym for sym, _ in rows]
+                if label == PRIMARY_INDEX:
+                    order_primary = [sym for sym, _ in rows]
 
-        if len(order_500) < 400:
-            raise RuntimeError(f"unexpected Nifty 500 size: {len(order_500)}")
+        if len(order_primary) < 600:
+            # Fall back: Nifty 500 members first, then remaining tagged names.
+            nifty500 = [sym for sym, tags in membership.items() if "Nifty 500" in tags]
+            rest = [sym for sym in membership if sym not in set(nifty500)]
+            order_primary = nifty500 + sorted(rest)
+        if len(order_primary) < 400:
+            raise RuntimeError(
+                f"unexpected universe size: {len(order_primary)}; failed={failed}"
+            )
 
+        seen: set[str] = set()
         stocks: list[UniverseStock] = []
-        for rank, symbol in enumerate(order_500, start=1):
+        for symbol in order_primary:
+            if symbol in seen:
+                continue
+            seen.add(symbol)
             seed = seed_by_symbol.get(symbol)
             stocks.append(
                 UniverseStock(
                     symbol=symbol,
                     name=names.get(symbol) or (seed.name if seed else symbol),
-                    market_cap_rank=rank,
+                    market_cap_rank=len(stocks) + 1,
                     last_price=seed.last_price if seed else None,
                     yahoo_ticker=yahoo_ticker(symbol),
-                    indices=sorted(membership.get(symbol, {"Nifty 500"})),
+                    indices=sorted(membership.get(symbol, {PRIMARY_INDEX})),
+                )
+            )
+        for symbol, tags in membership.items():
+            if symbol in seen:
+                continue
+            seed = seed_by_symbol.get(symbol)
+            stocks.append(
+                UniverseStock(
+                    symbol=symbol,
+                    name=names.get(symbol) or (seed.name if seed else symbol),
+                    market_cap_rank=len(stocks) + 1,
+                    last_price=seed.last_price if seed else None,
+                    yahoo_ticker=yahoo_ticker(symbol),
+                    indices=sorted(tags),
                 )
             )
         persist_universe(conn, stocks)
-        logger.info("Refreshed universe from NSE indices: %s names", len(stocks))
+        logger.info(
+            "Refreshed universe from NSE indices: %s names (failed=%s)",
+            len(stocks),
+            failed or "none",
+        )
         return stocks
     except Exception:
         logger.exception("NSE universe refresh failed; using bundled seed")

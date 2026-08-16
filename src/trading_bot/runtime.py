@@ -23,9 +23,9 @@ def boot(settings: Settings | None = None, db_path: Path | None = None):
     path = db_path or settings.database_path
     conn = init_db(path)
     stocks = get_universe(conn)
-    # Upgrade legacy Top-200 DBs to Nifty-500 seed (index tags included).
-    if len(stocks) < 300 or not any(s.indices for s in stocks[:5]):
-        logger.info("Upgrading universe seed to Nifty 500 (%s → 500)", len(stocks))
+    # Upgrade legacy / smaller DBs to Total Market seed (~750 with index tags).
+    if len(stocks) < 700 or not any(s.indices for s in stocks[:5]):
+        logger.info("Upgrading universe seed to Total Market (%s → ~750)", len(stocks))
         persist_universe(conn, load_seed_stocks())
     return settings, conn
 
