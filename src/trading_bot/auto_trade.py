@@ -1,6 +1,6 @@
 """Daily automated trading loop — PAPER_MODE by default.
 
-Default path uses ensemble voting (4 rule strategies + 2 AI agents).
+Two modes: rules_combo (6 rule voters) or dual_agents (Agent-Trend + Agent-Risk).
 Returns a detailed activity log so the UI can show what happened.
 """
 
@@ -10,15 +10,14 @@ import logging
 from datetime import date, timedelta
 from typing import Any, Callable
 
-from trading_bot.ai_layer import combined_score, get_ai_signal, heuristic_ai_signal
 from trading_bot.config import Settings
 from trading_bot.data_provider import HistoricalDataProvider
-from trading_bot.ensemble import vote_symbol
+from trading_bot.ensemble import decide_symbol
 from trading_bot.execution import list_open_positions, manage_open_positions, place_buy
 from trading_bot.indicators import add_indicators, snapshot_from_frame
 from trading_bot.models import AISignal, Candidate
 from trading_bot.selection import apply_selection_constraints, persist_selections
-from trading_bot.strategies import final_signal, needs_ai, normalize_strategy, rule_signal_for
+from trading_bot.strategies import normalize_strategy
 from trading_bot.universe import get_universe
 
 logger = logging.getLogger(__name__)
@@ -66,7 +65,7 @@ def run_daily_auto_trade(
     settings: Settings,
     provider: HistoricalDataProvider,
     *,
-    strategy: str = "ensemble",
+    strategy: str = "rules_combo",
     as_of: date | None = None,
     use_llm: bool = True,
     manage_exits: bool = True,
@@ -75,11 +74,13 @@ def run_daily_auto_trade(
 ) -> dict[str, Any]:
     """
     1) Manage open positions (SL/target vs live LTP when Kite connected)
-    2) Scan universe — ensemble votes OR single strategy
+    2) Scan with rules_combo (6 rules) OR dual_agents (2 AI agents)
     3) Place paper (or live if PAPER_MODE=false) orders through the risk gate
     """
     report = progress or _noop_progress
     strategy = normalize_strategy(strategy)
+    if strategy not in {"rules_combo", "dual_agents"}:
+        strategy = "rules_combo"
     as_of = as_of or date.today()
     mode = "paper" if settings.paper_mode else "live"
     capital = float(trade_capital if trade_capital is not None else settings.capital)
@@ -145,104 +146,82 @@ def run_daily_auto_trade(
         snap = snapshot_from_frame(indicated)
         scanned += 1
 
-        if strategy == "ensemble":
-            vote = vote_symbol(
-                stock.symbol,
-                row,
-                snap,
-                indicated,
-                settings,
-                conn,
-                as_of_date=as_of.isoformat(),
-                use_llm=bool(use_llm and settings.openai_ready),
-                min_rule_buys=2,
-            )
-            vote_dict = vote.to_dict()
-            votes.append(vote_dict)
-            if vote.final_signal == "buy":
-                detected.append(
-                    {
-                        "symbol": vote.symbol,
-                        "price": vote.last_price,
-                        "rule_buys": vote.rule_buy_count,
-                        "sma": vote.rule_votes.get("sma_crossover"),
-                        "ema": vote.rule_votes.get("ema_crossover"),
-                        "rsi": vote.rule_votes.get("rsi_pullback"),
-                        "trend": vote.rule_votes.get("trend_quality"),
-                        "agent_trend": vote.agent_trend.get("signal"),
-                        "agent_risk": vote.agent_risk.get("signal"),
-                        "score": vote.final_score,
-                        "stop_pct": vote.stop_loss_pct,
-                        "target_pct": vote.target_pct,
-                        "reasoning": vote.reasoning,
-                    }
-                )
-                ai = AISignal(
-                    signal=vote.final_signal,
-                    confidence=int(round((vote.agent_trend["confidence"] + vote.agent_risk["confidence"]) / 2)),
-                    stop_loss_pct=vote.stop_loss_pct,
-                    target_pct=vote.target_pct,
-                    reasoning=vote.reasoning,
-                    source="ensemble",
-                )
-                snap.rule_score = int(round(vote.rule_score_avg))
-                snap.rule_signal = "buy" if vote.rule_buy_count >= 2 else "hold"
-                scored.append(
-                    Candidate(
-                        stock=stock,
-                        indicators=snap,
-                        ai=ai,
-                        combined_signal="buy",
-                        combined_score=vote.final_score,
-                        source="ai_selected",
-                    )
-                )
-                log(
-                    f"  DETECTED BUY {vote.symbol} @ {vote.last_price:.2f} "
-                    f"({vote.rule_buy_count}/4 rules, agents agree) score={vote.final_score}"
-                )
+        vote = decide_symbol(
+            strategy,  # type: ignore[arg-type]
+            stock.symbol,
+            row,
+            snap,
+            indicated,
+            settings,
+            conn,
+            as_of_date=as_of.isoformat(),
+            use_llm=bool(use_llm and settings.openai_ready),
+        )
+        vote_dict = vote.to_dict()
+        votes.append(vote_dict)
+        if vote.final_signal != "buy":
             continue
 
-        # Non-ensemble single-strategy path
-        score, rule_sig = rule_signal_for(strategy, row)
-        snap.rule_score = score
-        snap.rule_signal = rule_sig
-        if needs_ai(strategy):
-            ai = get_ai_signal(
-                stock.symbol,
-                indicated,
-                snap,
-                settings,
-                conn,
-                as_of_date=as_of.isoformat(),
-                use_llm=bool(use_llm and settings.openai_ready),
-            )
-        else:
-            ai = heuristic_ai_signal(snap, settings)
-        combined = final_signal(strategy, rule_sig, ai.signal)
-        cand = Candidate(
-            stock=stock,
-            indicators=snap,
-            ai=ai,
-            combined_signal=combined,
-            combined_score=combined_score(score, ai, combined),
-            source="ai_selected",
+        detected.append(
+            {
+                "symbol": vote.symbol,
+                "mode": vote.mode,
+                "price": vote.last_price,
+                "rule_buys": vote.rule_buy_count,
+                "sma": vote.rule_votes.get("sma_crossover"),
+                "ema": vote.rule_votes.get("ema_crossover"),
+                "rsi": vote.rule_votes.get("rsi_pullback"),
+                "trend": vote.rule_votes.get("trend_quality"),
+                "momentum": vote.rule_votes.get("momentum"),
+                "volume": vote.rule_votes.get("volume_thrust"),
+                "agent_trend": vote.agent_trend.get("signal"),
+                "agent_risk": vote.agent_risk.get("signal"),
+                "score": vote.final_score,
+                "stop_pct": vote.stop_loss_pct,
+                "target_pct": vote.target_pct,
+                "reasoning": vote.reasoning,
+            }
         )
-        scored.append(cand)
-        if combined == "buy":
-            detected.append(
-                {
-                    "symbol": cand.symbol,
-                    "price": cand.last_price,
-                    "rule": rule_sig,
-                    "ai": ai.signal,
-                    "score": cand.combined_score,
-                    "stop_pct": ai.stop_loss_pct,
-                    "target_pct": ai.target_pct,
-                    "reasoning": ai.reasoning,
-                }
+        conf = int(
+            round(
+                (
+                    float(vote.agent_trend.get("confidence") or 0)
+                    + float(vote.agent_risk.get("confidence") or 0)
+                )
+                / 2
             )
-            log(f"  DETECTED BUY {cand.symbol} @ {cand.last_price:.2f} score={cand.combined_score}")
+        )
+        if strategy == "rules_combo":
+            conf = int(round(vote.rule_score_avg))
+        ai = AISignal(
+            signal=vote.final_signal,
+            confidence=max(1, conf),
+            stop_loss_pct=vote.stop_loss_pct,
+            target_pct=vote.target_pct,
+            reasoning=vote.reasoning,
+            source=vote.mode,
+        )
+        snap.rule_score = int(round(vote.rule_score_avg or conf))
+        snap.rule_signal = "buy"
+        scored.append(
+            Candidate(
+                stock=stock,
+                indicators=snap,
+                ai=ai,
+                combined_signal="buy",
+                combined_score=vote.final_score,
+                source="ai_selected",
+            )
+        )
+        detail = (
+            f"{vote.rule_buy_count}/6 rules"
+            if strategy == "rules_combo"
+            else "both agents"
+        )
+        log(
+            f"  DETECTED BUY {vote.symbol} @ {vote.last_price:.2f} "
+            f"({detail}) score={vote.final_score}"
+        )
 
     log(f"  Scanned {scanned} stocks ({skipped_data} skipped — insufficient history).")
     log(f"  Buy candidates before constraints: {len(detected)}")
@@ -307,7 +286,7 @@ def run_daily_auto_trade(
             log(f"  ORDER REJECTED {pick.symbol}: {result.get('reason')}")
 
     if not picks:
-        log("  No buys today — ensemble/rules did not agree strongly enough (this is normal).")
+        log("  No buys today — mode did not agree strongly enough (this is normal).")
 
     opens = list_open_positions(conn)
     log(f"Done. Open positions now: {len(opens)}")

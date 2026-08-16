@@ -8,7 +8,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from trading_bot.backtest import backtest
-from trading_bot.strategies import STRATEGY_LABELS, VALID_STRATEGIES
+from trading_bot.strategies import PRIMARY_STRATEGIES, STRATEGY_LABELS
 from trading_bot.auto_trade import run_daily_auto_trade
 from trading_bot.execution import list_open_positions, manage_open_positions
 from trading_bot.config import ROOT, load_settings
@@ -217,15 +217,15 @@ def _backtest_tab(settings, conn, provider) -> None:
     default_end = date.today()
     default_start = default_end - timedelta(days=365)
     c1, c2, c3, c4 = st.columns(4)
-    strategy_options = [s for s in VALID_STRATEGIES if s != "ensemble"]
-    default_ix = strategy_options.index("combined") if "combined" in strategy_options else 0
+    strategy_options = list(PRIMARY_STRATEGIES)
+    default_ix = 0
     symbol = c1.selectbox("Stock", symbols, index=symbols.index("RELIANCE") if "RELIANCE" in symbols else 0)
     strategy = c2.selectbox(
         "Strategy",
         strategy_options,
         index=default_ix,
         format_func=lambda s: STRATEGY_LABELS.get(s, s),
-        help="Ensemble voting is for Auto-trade only (too heavy for bar-by-bar backtest).",
+        help="Only two modes: 6 rule voters, or 2 AI agents.",
     )
     start = c3.date_input("Start", value=default_start)
     end = c4.date_input("End", value=default_end)
@@ -341,12 +341,11 @@ def _auto_trade_tab(settings, conn, provider) -> None:
     st.subheader("Daily auto-trade")
     st.markdown(
         """
-**Daily-trade aware (not long-term investing):**  
-1. Check open positions — exit **only** on stop-loss or target (never force-sell just because a day passed)  
-2. Scan with ensemble votes sized for **short-horizon** moves  
-3. Place orders with day-style stops/targets (~1.5% / ~3%)  
+**Two decision modes only:**  
+1. **Rules combo** — 6 rule voters (SMA, EMA, RSI, trend, momentum, volume)  
+2. **Dual agents** — Agent-Trend + Agent-Risk must both buy  
 
-Run each market day for new entries. An open trade stays until stop or target hits.
+Exits only on stop or target. Run each market day for new entries.
 """
     )
     if settings.paper_mode:
@@ -354,14 +353,13 @@ Run each market day for new entries. An open trade stays until stop or target hi
     else:
         st.error("PAPER_MODE is OFF — this can send **live** Zerodha orders. Only for registered algo use.")
 
-    default_idx = list(VALID_STRATEGIES).index("ensemble") if "ensemble" in VALID_STRATEGIES else 0
+    default_idx = list(PRIMARY_STRATEGIES).index("rules_combo")
     strategy = st.selectbox(
         "Decision mode",
-        list(VALID_STRATEGIES),
+        list(PRIMARY_STRATEGIES),
         index=default_idx,
         format_func=lambda s: STRATEGY_LABELS.get(s, s),
         key="auto_strategy",
-        help="Ensemble = all rule strategies vote + 2 AI agents. Other modes use a single strategy.",
     )
     trade_capital = st.number_input(
         "Capital to use for trading (₹)",
@@ -373,7 +371,7 @@ Run each market day for new entries. An open trade stays until stop or target hi
         help="Used for position sizing and risk checks. Does not withdraw money by itself.",
     )
     use_llm = st.checkbox(
-        "Use OpenAI for Agent-Trend / Agent-Risk (falls back to heuristics if off)",
+        "Use OpenAI for Dual agents (ignored for Rules combo; falls back to heuristics if off)",
         value=settings.openai_ready,
         key="auto_llm",
     )

@@ -6,6 +6,9 @@ from typing import Any, Literal
 Signal = Literal["buy", "hold", "avoid"]
 SelectionSource = Literal["ai_selected", "manual"]
 StrategyName = Literal[
+    "rules_combo",
+    "dual_agents",
+    "ensemble",
     "sma_crossover",
     "ema_crossover",
     "rsi_pullback",
@@ -14,7 +17,6 @@ StrategyName = Literal[
     "ema_ai",
     "rsi_ai",
     "combined",
-    "ensemble",
     "rule_based",
     "ai_filtered",
 ]

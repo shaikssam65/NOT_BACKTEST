@@ -70,7 +70,7 @@ class BacktestRequest(BaseModel):
 
 
 class AutoTradeRequest(BaseModel):
-    strategy: str = "ensemble"
+    strategy: str = "rules_combo"
     date: date | None = None
     use_llm: bool = True
     trade_capital: float | None = None

@@ -191,15 +191,7 @@ def backtest(
     use_llm: bool = False,
 ) -> BacktestResult:
     strategy_name = normalize_strategy(strategy_name)
-    if strategy_name == "ensemble":
-        raise ValueError(
-            "ensemble is for daily auto-trade only. Use combined / trend_quality / *_ai for backtests."
-        )
-    if strategy_name not in VALID_STRATEGIES and strategy_name not in {
-        "rule_based",
-        "ai_filtered",
-    }:
-        # normalize_strategy already maps aliases; accept all known labels
+    if strategy_name not in VALID_STRATEGIES:
         from trading_bot.strategies import STRATEGY_LABELS
 
         if strategy_name not in STRATEGY_LABELS:

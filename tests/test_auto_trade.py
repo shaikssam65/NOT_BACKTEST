@@ -21,14 +21,14 @@ def test_auto_trade_ensemble_returns_activity(db, settings):
         db,
         settings,
         provider,
-        strategy="ensemble",
+        strategy="rules_combo",
         as_of=date(2024, 5, 15),
         use_llm=False,
         manage_exits=True,
         trade_capital=100_000.0,
     )
     assert result["mode"] == "paper"
-    assert result["strategy"] == "ensemble"
+    assert result["strategy"] == "rules_combo"
     assert result["trade_capital"] == 100_000.0
     assert result["scanned"] >= 1
     assert isinstance(result["activity"], list) and len(result["activity"]) >= 4

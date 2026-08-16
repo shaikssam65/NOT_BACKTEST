@@ -24,7 +24,7 @@ PAPER orders by default  →  live only if PAPER_MODE=false
 
 ### How decisions are made (flowchart)
 
-Buy and sell are **separate**. A buy only stores stop + target; a sell happens later when price hits those levels.
+Only **two** modes. Buy stores stop + target; sell happens later when price hits those levels.
 
 ```mermaid
 flowchart TD
@@ -32,58 +32,48 @@ flowchart TD
   EXITS --> HIT{LTP vs stop/target?}
   HIT -->|LTP ≤ stop| SELL_SL[SELL — stop-loss]
   HIT -->|LTP ≥ target| SELL_TG[SELL — target]
-  HIT -->|in between| HOLD[Keep holding — no sell]
-  SELL_SL --> SCAN
-  SELL_TG --> SCAN
-  HOLD --> SCAN
-  SCAN[Scan NSE Top 200 + indicators] --> RULES[4 rule voters: SMA / EMA / RSI / trend]
-  RULES --> TALLY{Enough rule BUYs?}
-  TALLY -->|No| SKIP1[Skip stock — hold/avoid]
-  TALLY -->|Yes| AGENTS[Agent-Trend + Agent-Risk]
-  AGENTS --> BOTH{Both agents BUY?}
-  BOTH -->|No| SKIP2[Skip stock]
-  BOTH -->|Yes| CAND[Add to buy candidates]
-  CAND --> PICK[Selection constraints: max 3–4 picks]
-  PICK --> RISK[Risk gate: stop required, size from capital, max positions]
-  RISK --> PASS{Passed?}
-  PASS -->|No| REJECT[Order rejected — logged]
-  PASS -->|Yes| MODE{PAPER_MODE?}
-  MODE -->|true| PAPER[Paper BUY fill — mock money in DB]
-  MODE -->|false| LIVE[Live BUY on Zerodha]
-  PAPER --> PLAN[Store stop + target on position]
-  LIVE --> PLAN
-  PLAN --> WAIT([Wait for next run / Manage exits])
+  HIT -->|in between| HOLD[Keep holding]
+  SELL_SL --> MODE
+  SELL_TG --> MODE
+  HOLD --> MODE
+  MODE{Which mode?}
+  MODE -->|1 rules_combo| R6[6 rule voters: SMA EMA RSI trend momentum volume]
+  R6 --> ROK{≥3 buy votes?}
+  ROK -->|No| SKIP1[Skip]
+  ROK -->|Yes| RISK
+  MODE -->|2 dual_agents| A2[Agent-Trend + Agent-Risk]
+  A2 --> AOK{Both agents BUY?}
+  AOK -->|No| SKIP2[Skip]
+  AOK -->|Yes| RISK
+  RISK[Risk gate: size from capital] --> PASS{Passed?}
+  PASS -->|No| REJECT[Rejected]
+  PASS -->|Yes| PAPER{PAPER_MODE?}
+  PAPER -->|true| PF[Paper BUY]
+  PAPER -->|false| LV[Live BUY on Zerodha]
+  PF --> PLAN[Store stop + target]
+  LV --> PLAN
+  PLAN --> WAIT([Next run / Manage exits])
   WAIT --> EXITS
 ```
 
-**In one line:** rules vote → both AI agents agree → risk sizes the BUY → later LTP hits stop or target → SELL.
-
-### Strategies (backtest + auto-trade)
+### Strategies (only two)
 
 | Key | What it does |
 | --- | --- |
-| `ensemble` | **Recommended for auto-trade** — 4 rules vote + 2 AI agents |
-| `sma_crossover` | SMA 20/50 + price/volume filters |
-| `ema_crossover` | EMA 12/26 + slow SMA bias |
-| `rsi_pullback` | Uptrend + RSI 40–55 dip buy |
-| `trend_quality` | Multi-confirm trend (strictest rules-only) |
-| `sma_ai` / `ema_ai` / `rsi_ai` | Same rules + AI must agree |
-| `combined` | trend_quality + AI (good for backtests) |
+| `rules_combo` | **1** — 6 rule voters combined (SMA, EMA, RSI, trend, momentum, volume). Need ≥3 buys. |
+| `dual_agents` | **2** — Agent-Trend + Agent-Risk must both say buy. |
+
+Legacy names (`ensemble`, `combined`, `sma_ai`, …) still map to one of these two.
 
 ### Daily auto-trade (paper)
 
-**Daily-trade aware** (short-horizon setups), not long-term investing:
-- Entries sized with day-style stop / target (defaults ~1.5% / ~3%; AI can adjust within bounds)
-- AI agents think in short-horizon terms
-- Exits **only** on stop or target — **never** force-sold just because a day passed
-- Run each market day for new entries (`scripts/run_daily_auto_trade.ps1` or dashboard)
-
 ```bash
-python -m trading_bot auto-trade --strategy ensemble --capital 100000
+python -m trading_bot auto-trade --strategy rules_combo --capital 100000
+python -m trading_bot auto-trade --strategy dual_agents --capital 100000
 ```
 
 Nothing guarantees daily profits — paper first, then live only with proper algo registration.  
-Keeps `PAPER_MODE=true` unless you deliberately set it false. Live orders also need Zerodha algo registration.
+Keeps `PAPER_MODE=true` unless you deliberately set it false.
 
 ---
 
@@ -127,11 +117,10 @@ Browser opens at `http://127.0.0.1:8501/`.
 1. Open tab **Backtest**
 2. Pick a stock (from Top 200)
 3. Pick a strategy:
-   - `rule_based` — indicators only  
-   - `ai_filtered` — indicators, then AI filter  
-   - `combined` — both must agree (recommended)
+   - `rules_combo` — 6 rule voters (≥3 must buy)  
+   - `dual_agents` — Agent-Trend + Agent-Risk must both buy  
 4. Choose start date, end date, capital (₹)
-5. Leave “Use live OpenAI on each bar” **off** unless you want a slow/expensive run  
+5. Leave “Use live OpenAI…” **off** unless you want a slow/expensive dual-agents run  
 6. Click **Run backtest**
 7. Under **Download CSV**, save Summary / Trades / Equity curve to your PC
 
@@ -140,7 +129,7 @@ You’ll get return %, win rate, max drawdown, equity curve, and commentary.
 **From the command line**
 
 ```bash
-python -m trading_bot backtest --symbol RELIANCE --strategy combined --start 2024-01-01 --end 2025-12-31 --capital 100000
+python -m trading_bot backtest --symbol RELIANCE --strategy rules_combo --start 2024-01-01 --end 2025-12-31 --capital 100000
 ```
 
 Same run twice = instant (results cached in SQLite).
@@ -166,12 +155,10 @@ flowchart TD
   D --> I[Compute indicators in Python SMA EMA RSI ATR volume]
   H --> I
   I --> J{Strategy}
-  J -->|rule_based| K[Indicator signal only]
-  J -->|ai_filtered| L[Indicators then AI filter]
-  J -->|combined| M[Both must say buy]
+  J -->|rules_combo| K[6 rule voters ≥3 buys]
+  J -->|dual_agents| L[Agent-Trend + Agent-Risk both buy]
   K --> N[Simulate trades with fake money]
   L --> N
-  M --> N
   N --> O[Stop-loss and target on every trade]
   O --> P[Show return win rate drawdown equity curve]
   P --> Q[Download CSV summary trades equity]

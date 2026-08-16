@@ -74,7 +74,7 @@ class RiskConfig:
 class AutoTradeConfig:
     """Daily-trading style: short-horizon setups — exits via stop/target, not forced flatten."""
 
-    default_strategy: str = "ensemble"
+    default_strategy: str = "rules_combo"
     # Soft horizon for messaging / AI prompts only. Does NOT force-sell losers.
     intended_hold_days: int = 1
     # Day-trade style defaults when AI does not override.

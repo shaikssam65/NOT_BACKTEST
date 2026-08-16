@@ -51,7 +51,7 @@ risk:
 
 # Daily auto-trade — short-horizon setups; exits only on stop/target (never force-flat).
 auto_trade:
-  default_strategy: ensemble
+  default_strategy: rules_combo
   intended_hold_days: 1
   daily_stop_loss_pct: 1.5
   daily_target_pct: 3.0
