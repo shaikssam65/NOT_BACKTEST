@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from trading_bot.simple_bot import (
+    manual_buy,
     manual_sell_holdings,
     price_in_selected_bands,
     research_and_buy,
@@ -23,6 +24,26 @@ def test_manual_sell_missing_holding(settings):
     assert result["ok"] is True
     assert result["sold"][0]["ok"] is False
     assert result["sold"][0]["reason"] == "not_in_kite_holdings"
+
+
+def test_manual_buy_requires_symbol(db, settings):
+    result = manual_buy(db, settings, symbol="")
+    assert result["ok"] is False
+    assert result["reason"] == "symbol_required"
+
+
+def test_manual_buy_with_price(db, settings):
+    result = manual_buy(
+        db,
+        settings,
+        symbol="INFY",
+        qty=2,
+        entry_price=100.0,
+    )
+    assert result["ok"] is True
+    assert result["qty"] == 2
+    assert result["price"] == 100.0
+    assert result["order"]["ok"] is True
 
 
 def test_price_bands():

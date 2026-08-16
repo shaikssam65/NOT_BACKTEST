@@ -247,6 +247,89 @@ def manual_sell_holdings(
     }
 
 
+def manual_buy(
+    conn,
+    settings: Settings,
+    *,
+    symbol: str,
+    qty: int | None = None,
+    capital: float | None = None,
+    entry_price: float | None = None,
+    progress: ProgressCb | None = None,
+) -> dict[str, Any]:
+    """
+    Manual buy one NSE symbol. Uses Kite LTP when entry_price not given.
+    Provide either qty or capital (₹); capital → floor(capital / price).
+    """
+    log = progress or _noop
+    mode = "paper" if settings.paper_mode else "live"
+    sym = str(symbol or "").upper().strip()
+    if not sym:
+        return {"ok": False, "mode": mode, "reason": "symbol_required"}
+
+    quote = fetch_kite_quote(sym, settings)
+    price = float(entry_price) if entry_price and entry_price > 0 else 0.0
+    if price <= 0 and quote and quote.get("ltp"):
+        price = float(quote["ltp"])
+    if price <= 0:
+        return {
+            "ok": False,
+            "mode": mode,
+            "symbol": sym,
+            "reason": "no_price — connect Kite or enter a price manually",
+        }
+
+    if qty is not None and int(qty) > 0:
+        buy_qty = int(qty)
+        slice_cap = buy_qty * price
+    elif capital is not None and float(capital) > 0:
+        slice_cap = float(capital)
+        buy_qty = max(0, math.floor(slice_cap / price))
+    else:
+        return {"ok": False, "mode": mode, "symbol": sym, "reason": "qty_or_capital_required"}
+
+    if buy_qty <= 0:
+        return {"ok": False, "mode": mode, "symbol": sym, "reason": "qty_zero", "price": price}
+
+    stop = price * (1 - STOP_PCT / 100.0)
+    target = price * (1 + TARGET_PCT / 100.0)
+    log(f"Manual BUY {sym} × {buy_qty} @ ~{price:.2f} · mode={mode}")
+
+    result = place_buy(
+        conn,
+        settings,
+        symbol=sym,
+        entry_price=price,
+        stop_loss=stop,
+        target=target,
+        strategy="manual_buy",
+        source="manual",
+        available_capital=slice_cap,
+        qty=buy_qty,
+    )
+    out = {
+        "ok": bool(result.get("ok")),
+        "mode": mode,
+        "symbol": sym,
+        "qty": buy_qty,
+        "price": round(price, 2),
+        "stop": round(stop, 2),
+        "target": round(target, 2),
+        "kite_quote": quote,
+        "order": result,
+        "note": (
+            f"{'Bought' if result.get('ok') else 'Failed'} {sym} × {buy_qty}."
+            + (" PAPER fill." if settings.paper_mode and result.get("ok") else "")
+            + (f" {result.get('reason')}" if not result.get("ok") else "")
+        ),
+    }
+    if result.get("ok"):
+        log(f"  OK {sym} × {result.get('qty')}")
+    else:
+        log(f"  REJECTED {sym}: {result.get('reason')}")
+    return out
+
+
 def _fetch_news_headlines(symbol: str, limit: int = 5) -> list[str]:
     """Deprecated stub — use Finnhub helpers."""
     return []

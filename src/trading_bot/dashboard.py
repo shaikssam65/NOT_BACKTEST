@@ -25,6 +25,8 @@ from trading_bot.simple_bot import (
     PROFIT_SELL_PCT,
     auto_sell_profits,
     fetch_kite_holdings,
+    fetch_kite_quote,
+    manual_buy,
     manual_sell_holdings,
     research_and_buy,
 )
@@ -140,8 +142,8 @@ def main() -> None:
     st.title("NSE Simple Bot")
     st.markdown(
         """
-1. **Auto-sell** ≥30% profits · **Manual sell** any holding you pick  
-2. **Research** — price ranges → **Suggest only** or **Place buy orders**  
+1. **Auto-sell** ≥30% · **Manual sell** · **Manual buy**  
+2. **Research** — price ranges → Suggest only or Place buy orders  
    (rules + Finnhub + Kite; no ChatGPT)
 """
     )
@@ -252,6 +254,95 @@ def main() -> None:
                 hide_index=True,
                 use_container_width=True,
             )
+
+    st.markdown("---")
+    st.subheader("1c · Manual buy")
+    st.caption(
+        "Enter any NSE symbol, choose qty or ₹ amount, then place a buy. "
+        "Uses Kite live LTP when connected (or enter price yourself)."
+    )
+    mb1, mb2, mb3 = st.columns([2, 1, 1])
+    with mb1:
+        mb_symbol = st.text_input("Symbol (NSE)", value="", placeholder="e.g. INFY").strip().upper()
+    with mb2:
+        mb_mode = st.selectbox("Size by", ["Quantity", "Capital (₹)"], index=0)
+    with mb3:
+        if st.button("Fetch LTP", use_container_width=True):
+            if not mb_symbol:
+                st.error("Enter a symbol first.")
+            else:
+                q = fetch_kite_quote(mb_symbol, settings)
+                if q and q.get("ltp"):
+                    st.session_state["manual_buy_ltp"] = float(q["ltp"])
+                    st.session_state["manual_buy_quote"] = q
+                else:
+                    st.warning("No Kite quote — enter price manually below.")
+
+    ltp_default = float(st.session_state.get("manual_buy_ltp") or 0.0)
+    mb_price = st.number_input(
+        "Entry price (₹) — 0 = use Kite LTP at order time",
+        min_value=0.0,
+        max_value=1_000_000.0,
+        value=ltp_default,
+        step=0.05,
+        key="manual_buy_price_input",
+    )
+    if mb_mode == "Quantity":
+        mb_qty = st.number_input("Quantity", min_value=1, max_value=1_000_000, value=1, step=1)
+        mb_cap = None
+    else:
+        mb_qty = None
+        mb_cap = st.number_input(
+            "Capital (₹)",
+            min_value=100.0,
+            max_value=50_000_000.0,
+            value=10_000.0,
+            step=500.0,
+        )
+
+    quote_preview = st.session_state.get("manual_buy_quote")
+    if quote_preview and mb_symbol:
+        st.caption(
+            f"{mb_symbol} Kite — LTP {quote_preview.get('ltp')} · "
+            f"day {quote_preview.get('day_chg_pct')}%"
+        )
+
+    if st.button("Place manual buy", type="primary", use_container_width=True):
+        if not mb_symbol:
+            st.error("Enter a symbol.")
+        else:
+            status = st.status("Placing buy…", expanded=True)
+            try:
+
+                def _p(msg: str) -> None:
+                    status.write(msg)
+
+                report = manual_buy(
+                    conn,
+                    settings,
+                    symbol=mb_symbol,
+                    qty=int(mb_qty) if mb_qty is not None else None,
+                    capital=float(mb_cap) if mb_cap is not None else None,
+                    entry_price=float(mb_price) if mb_price and mb_price > 0 else None,
+                    progress=_p,
+                )
+                st.session_state["manual_buy_report"] = report
+                status.update(
+                    label="Done" if report.get("ok") else "Failed",
+                    state="complete" if report.get("ok") else "error",
+                )
+            except Exception as exc:
+                status.update(label="Failed", state="error")
+                st.error(str(exc))
+
+    manual_buy_report = st.session_state.get("manual_buy_report")
+    if manual_buy_report:
+        st.info(manual_buy_report.get("note") or "")
+        show = {
+            k: manual_buy_report.get(k)
+            for k in ("symbol", "qty", "price", "stop", "target", "mode", "ok")
+        }
+        st.dataframe(pd.DataFrame([show]), hide_index=True, use_container_width=True)
 
     st.markdown("---")
     st.subheader("2 · Research 2–3 stocks")
