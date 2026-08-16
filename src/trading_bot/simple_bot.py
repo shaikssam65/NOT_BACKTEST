@@ -23,16 +23,42 @@ ProgressCb = Callable[[str], None]
 # Medium established: skip mega-caps and micro junk.
 MIN_RANK = 25
 MAX_RANK = 160
-# Prefer liquid but not ultra-expensive names for splitting capital.
-MAX_PRICE = 800.0
 DEFAULT_PICKS = 3
 PROFIT_SELL_PCT = 30.0
 STOP_PCT = 8.0
 TARGET_PCT = 30.0
 
+# UI price bands (₹). User can multi-select any subset.
+PRICE_BANDS: list[tuple[str, float, float]] = [
+    ("0-50", 0.0, 50.0),
+    ("50-100", 50.0, 100.0),
+    ("100-200", 100.0, 200.0),
+    ("200-500", 200.0, 500.0),
+    ("500-1000", 500.0, 1000.0),
+    ("1000-5000", 1000.0, 5000.0),
+]
+DEFAULT_PRICE_BANDS = ["50-100", "100-200", "200-500", "500-1000"]
+
 
 def _noop(_: str) -> None:
     return None
+
+
+def price_in_selected_bands(price: float, band_labels: list[str] | None) -> bool:
+    """True if price falls in any selected band. Empty/None → all bands allowed."""
+    if not band_labels:
+        return True
+    selected = {str(x) for x in band_labels}
+    for label, lo, hi in PRICE_BANDS:
+        if label not in selected:
+            continue
+        # Inclusive lower, exclusive upper except last band includes hi.
+        if label == "1000-5000":
+            if lo <= price <= hi:
+                return True
+        elif lo <= price < hi:
+            return True
+    return False
 
 
 def fetch_kite_holdings(settings: Settings) -> list[dict[str, Any]]:
@@ -393,10 +419,15 @@ def research_and_buy(
     pick_count: int = DEFAULT_PICKS,
     as_of: date | None = None,
     progress: ProgressCb | None = None,
+    place_orders: bool = True,
+    price_bands: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Research medium established stocks with MA + rule voters + Finnhub news + Kite live quotes,
-    then split capital across 2–3 names and place BUY orders. No OpenAI.
+    then optionally split capital and place BUY orders. No OpenAI.
+
+    place_orders=False → suggest only (show picks + planned qty, no orders).
+    price_bands → e.g. ["0-50","100-200"]; empty/None = all bands.
     """
     log = progress or _noop
     as_of = as_of or date.today()
@@ -404,9 +435,14 @@ def research_and_buy(
     capital = float(capital)
     if capital < 5_000:
         raise ValueError("Capital should be at least ₹5,000")
+    bands = list(price_bands) if price_bands else [b[0] for b in PRICE_BANDS]
     mode = "paper" if settings.paper_mode else "live"
+    action = "place buys" if place_orders else "suggest only"
 
-    log(f"Research & buy · capital ₹{capital:,.0f} · picks={pick_count} · mode={mode}")
+    log(
+        f"Research ({action}) · capital ₹{capital:,.0f} · picks={pick_count} · "
+        f"bands={','.join(bands)} · mode={mode}"
+    )
     log("Step 1 — Score medium established names (SMA/EMA/RSI/trend/momentum/volume)…")
 
     universe = get_universe(conn)
@@ -424,7 +460,7 @@ def research_and_buy(
         indicated = add_indicators(df, settings.indicators)
         row = indicated.iloc[-1]
         price = float(row["close"])
-        if price <= 0 or price > MAX_PRICE:
+        if price <= 0 or not price_in_selected_bands(price, bands):
             continue
         scanned += 1
         score, signal, votes = rules_combo_vote(row, min_buys=2)
@@ -470,12 +506,23 @@ def research_and_buy(
     picks = rank_with_finnhub_and_kite(
         shortlist, settings, pick_count=pick_count, progress=log
     )
+    # Re-check live LTP against bands (quote may differ from last close).
+    filtered_picks = []
+    for p in picks:
+        px = float(p.get("price") or 0)
+        if price_in_selected_bands(px, bands):
+            filtered_picks.append(p)
+        else:
+            log(f"  drop {p.get('symbol')} — live ₹{px:.2f} outside selected bands")
+    picks = filtered_picks
     log(f"Step 3 — Final picks: {[p['symbol'] for p in picks] or ['none']}")
 
     if not picks:
         return {
             "ok": True,
             "mode": mode,
+            "place_orders": place_orders,
+            "price_bands": bands,
             "capital": capital,
             "scanned": scanned,
             "market_news": market_news,
@@ -484,13 +531,16 @@ def research_and_buy(
             ],
             "picks": [],
             "orders": [],
-            "note": "No stocks passed rules + Finnhub/Kite filter today.",
+            "note": "No stocks passed rules + price bands + Finnhub/Kite filter today.",
         }
 
     slice_cap = capital / len(picks)
     orders: list[dict[str, Any]] = []
     plans: list[dict[str, Any]] = []
-    log(f"Step 4 — Split ₹{capital:,.0f} → ₹{slice_cap:,.0f} each · place buys…")
+    if place_orders:
+        log(f"Step 4 — Split ₹{capital:,.0f} → ₹{slice_cap:,.0f} each · place buys…")
+    else:
+        log(f"Step 4 — Suggest only · ₹{slice_cap:,.0f} per name (no orders)…")
 
     for p in picks:
         price = float(p["price"])
@@ -499,6 +549,7 @@ def research_and_buy(
         qty = max(0, math.floor(slice_cap / price))
         plan = {
             "symbol": p["symbol"],
+            "name": p.get("name"),
             "price": price,
             "qty": qty,
             "slice_capital": round(slice_cap, 2),
@@ -509,8 +560,11 @@ def research_and_buy(
             "news": p.get("news") or [],
             "kite_quote": p.get("kite_quote"),
             "news_sentiment": p.get("news_sentiment"),
+            "data_source": p.get("data_source"),
         }
         plans.append(plan)
+        if not place_orders:
+            continue
         if qty <= 0:
             orders.append({"symbol": p["symbol"], "ok": False, "reason": "qty_zero"})
             continue
@@ -532,9 +586,22 @@ def research_and_buy(
         else:
             log(f"  REJECTED {p['symbol']}: {result.get('reason')}")
 
+    if place_orders:
+        note = (
+            "Rules + Finnhub news when available; else Kite live quotes. No ChatGPT. "
+            + ("PAPER fills only." if settings.paper_mode else "LIVE orders sent.")
+        )
+    else:
+        note = (
+            "Suggestion only — no orders placed. Review picks, then use "
+            "“Place buy orders” if you want to buy."
+        )
+
     return {
         "ok": True,
         "mode": mode,
+        "place_orders": place_orders,
+        "price_bands": bands,
         "capital": capital,
         "slice_capital": round(slice_cap, 2),
         "scanned": scanned,
@@ -542,8 +609,5 @@ def research_and_buy(
         "picks": plans,
         "orders": orders,
         "rule_voters": [name for name, _ in RULE_COMBO_VOTERS],
-        "note": (
-            "Rules + Finnhub news when available; else Kite live quotes. No ChatGPT. "
-            + ("PAPER fills only." if settings.paper_mode else "LIVE orders sent.")
-        ),
+        "note": note,
     }

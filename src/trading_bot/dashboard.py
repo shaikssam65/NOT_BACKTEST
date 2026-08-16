@@ -19,7 +19,13 @@ from trading_bot.kite_auth import (
     upsert_env,
 )
 from trading_bot.runtime import boot, build_provider
-from trading_bot.simple_bot import PROFIT_SELL_PCT, auto_sell_profits, research_and_buy
+from trading_bot.simple_bot import (
+    DEFAULT_PRICE_BANDS,
+    PRICE_BANDS,
+    PROFIT_SELL_PCT,
+    auto_sell_profits,
+    research_and_buy,
+)
 
 try:
     st.set_page_config(page_title="NSE Simple Bot", layout="wide")
@@ -132,16 +138,9 @@ def main() -> None:
     st.title("NSE Simple Bot")
     st.markdown(
         """
-Two buttons only:
-
-1. **Sell profits** — read your Kite holdings; if any are **≥30%** up, place a **sell**; otherwise leave them  
-2. **Buy with capital** — research **2–3 medium established** stocks using:
-   - Rule voters (SMA / EMA / RSI / trend / momentum / volume)  
-   - **Finnhub** live company + market news  
-   - **Kite** live quotes  
-   - Split your money and place **buys**  
-
-No ChatGPT / OpenAI in this flow.
+1. **Sell profits** — Kite holdings ≥**30%** → sell; else leave  
+2. **Research** — pick price ranges, then **Suggest only** (review) or **Place buy orders**  
+   Scoring: rules + Finnhub news + Kite live quotes (no ChatGPT)
 """
     )
 
@@ -184,10 +183,17 @@ No ChatGPT / OpenAI in this flow.
             st.dataframe(pd.DataFrame(sell_report["holdings"]), hide_index=True, use_container_width=True)
 
     st.markdown("---")
-    st.subheader("2 · Research & buy 2–3 stocks")
+    st.subheader("2 · Research 2–3 stocks")
     st.caption(
-        "Universe: medium established NSE names. Scoring: SMA/EMA/RSI/trend/momentum/volume "
-        "+ Finnhub news + Kite live LTP. Capital is split equally."
+        "Choose one or more price ranges, then Suggest only (check picks) or Place buy orders. "
+        "Capital is split equally across the final picks."
+    )
+    band_labels = [b[0] for b in PRICE_BANDS]
+    price_bands = st.multiselect(
+        "Price range (₹) — pick any / multiple",
+        options=band_labels,
+        default=[b for b in DEFAULT_PRICE_BANDS if b in band_labels],
+        help="Stock last price / live LTP must fall in at least one selected band.",
     )
     col_a, col_b = st.columns([2, 1])
     with col_a:
@@ -201,8 +207,12 @@ No ChatGPT / OpenAI in this flow.
     with col_b:
         pick_n = st.selectbox("How many stocks", [2, 3], index=1)
 
-    if st.button("Research & place buy orders", type="primary", use_container_width=True):
-        status = st.status("Researching…", expanded=True)
+    def _run_research(*, place_orders: bool) -> None:
+        if not price_bands:
+            st.error("Select at least one price range.")
+            return
+        label = "Suggesting…" if not place_orders else "Researching & buying…"
+        status = st.status(label, expanded=True)
         try:
 
             def _p(msg: str) -> None:
@@ -215,6 +225,8 @@ No ChatGPT / OpenAI in this flow.
                 capital=float(capital),
                 pick_count=int(pick_n),
                 progress=_p,
+                place_orders=place_orders,
+                price_bands=list(price_bands),
             )
             st.session_state["buy_report"] = result
             status.update(label="Done", state="complete")
@@ -222,11 +234,22 @@ No ChatGPT / OpenAI in this flow.
             status.update(label="Failed", state="error")
             st.error(str(exc))
 
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("Suggest only (no buy)", use_container_width=True):
+            _run_research(place_orders=False)
+    with b2:
+        if st.button("Place buy orders", type="primary", use_container_width=True):
+            _run_research(place_orders=True)
+
     buy_report = st.session_state.get("buy_report")
     if buy_report:
         st.info(buy_report.get("note") or "")
+        if buy_report.get("price_bands"):
+            st.caption(f"Price bands used: {', '.join(buy_report['price_bands'])}")
         if buy_report.get("picks"):
-            st.markdown("**Picks**")
+            title = "**Suggested picks**" if not buy_report.get("place_orders") else "**Picks**"
+            st.markdown(title)
             show = []
             for p in buy_report["picks"]:
                 show.append(

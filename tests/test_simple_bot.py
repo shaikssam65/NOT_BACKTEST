@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from trading_bot.simple_bot import research_and_buy
+from trading_bot.simple_bot import price_in_selected_bands, research_and_buy
 from tests.conftest import FakeProvider, trending_ohlcv
+
+
+def test_price_bands():
+    assert price_in_selected_bands(75.0, ["50-100"]) is True
+    assert price_in_selected_bands(75.0, ["0-50"]) is False
+    assert price_in_selected_bands(120.0, ["100-200", "500-1000"]) is True
+    assert price_in_selected_bands(2500.0, ["1000-5000"]) is True
+    assert price_in_selected_bands(99.0, None) is True
 
 
 def test_research_and_buy_runs(db, settings):
@@ -25,7 +33,11 @@ def test_research_and_buy_runs(db, settings):
         capital=60_000.0,
         pick_count=2,
         as_of=date(2024, 5, 15),
+        place_orders=False,
+        price_bands=["50-100", "100-200"],
     )
     assert result["ok"] is True
     assert result["capital"] == 60_000.0
+    assert result["place_orders"] is False
+    assert result["orders"] == []
     assert "orders" in result
