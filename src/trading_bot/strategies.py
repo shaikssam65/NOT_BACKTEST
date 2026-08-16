@@ -1,10 +1,10 @@
 """Named trading strategies for backtest + daily auto-trade.
 
-Only three primary modes (what the UI shows):
-  1) rules_combo  — 6 rule-based voters combined
+Primary modes in the UI:
+  1) rules_combo  — 6 rule-based voters
   2) dual_agents  — Agent-Trend + Agent-Risk
-  3) small_swing  — 2–3 small stocks, equal capital split, +30% target (human-approved sells)
-Legacy names still normalize for old caches/CLI.
+  3) combined     — rules + both agents must agree
+  4) small_swing  — weekly under-₹50 established names, auto-sell at +30%
 """
 
 from __future__ import annotations
@@ -18,8 +18,9 @@ from trading_bot.models import Signal
 StrategyName = Literal[
     "rules_combo",
     "dual_agents",
+    "combined",
     "small_swing",
-    # Legacy (normalize → primary)
+    # Legacy
     "ensemble",
     "sma_crossover",
     "ema_crossover",
@@ -28,24 +29,27 @@ StrategyName = Literal[
     "sma_ai",
     "ema_ai",
     "rsi_ai",
-    "combined",
     "rule_based",
     "ai_filtered",
     "momentum",
     "volume_thrust",
 ]
 
-# Only these appear in the dashboard / recommended CLI choices.
-PRIMARY_STRATEGIES: tuple[StrategyName, ...] = ("rules_combo", "dual_agents", "small_swing")
+PRIMARY_STRATEGIES: tuple[StrategyName, ...] = (
+    "rules_combo",
+    "dual_agents",
+    "combined",
+    "small_swing",
+)
 
 VALID_STRATEGIES: tuple[StrategyName, ...] = PRIMARY_STRATEGIES
 
 STRATEGY_LABELS: dict[str, str] = {
     "rules_combo": "1 · Rules combo (6 rule voters)",
     "dual_agents": "2 · Dual agents (Agent-Trend + Agent-Risk)",
-    "small_swing": "3 · Small stocks · split capital · +30% (approve sells)",
-    # Legacy labels (still resolvable, not shown in UI)
-    "ensemble": "Legacy → rules_combo",
+    "combined": "3 · Combined (rules + both agents)",
+    "small_swing": "4 · Under ₹50 weekly · auto-sell at +30%",
+    "ensemble": "Legacy → combined",
     "sma_crossover": "Legacy rule",
     "ema_crossover": "Legacy rule",
     "rsi_pullback": "Legacy rule",
@@ -53,7 +57,6 @@ STRATEGY_LABELS: dict[str, str] = {
     "sma_ai": "Legacy → dual_agents",
     "ema_ai": "Legacy → dual_agents",
     "rsi_ai": "Legacy → dual_agents",
-    "combined": "Legacy → dual_agents",
     "rule_based": "Legacy → rules_combo",
     "ai_filtered": "Legacy → dual_agents",
 }
@@ -66,7 +69,6 @@ def normalize_strategy(name: str) -> StrategyName:
         "voting": "rules_combo",
         "rules": "rules_combo",
         "rules_only": "rules_combo",
-        "ensemble": "rules_combo",
         "sma_crossover": "rules_combo",
         "ema_crossover": "rules_combo",
         "rsi_pullback": "rules_combo",
@@ -80,7 +82,8 @@ def normalize_strategy(name: str) -> StrategyName:
         "sma_ai": "dual_agents",
         "ema_ai": "dual_agents",
         "rsi_ai": "dual_agents",
-        "combined": "dual_agents",
+        "ensemble": "combined",
+        "rules_and_agents": "combined",
         "smallcap": "small_swing",
         "small_cap": "small_swing",
         "swing_30": "small_swing",
@@ -308,21 +311,26 @@ def rules_combo_vote(row: pd.Series, *, min_buys: int = 3) -> tuple[int, Signal,
 
 def rule_signal_for(strategy: str, row: pd.Series) -> tuple[int, Signal]:
     name = normalize_strategy(strategy)
-    if name in {"rules_combo", "small_swing"}:
-        score, signal, _votes = rules_combo_vote(row, min_buys=3 if name == "rules_combo" else 2)
+    if name in {"rules_combo", "small_swing", "combined"}:
+        min_buys = 3 if name == "rules_combo" else 2
+        score, signal, _votes = rules_combo_vote(row, min_buys=min_buys)
         return score, signal
-    # dual_agents: rules are informational only; soft trend_quality for snapshot
     return signal_trend_quality(row)
 
 
 def needs_ai(strategy: str) -> bool:
-    return normalize_strategy(strategy) == "dual_agents"
+    return normalize_strategy(strategy) in {"dual_agents", "combined"}
 
 
 def final_signal(strategy: str, rule: Signal, ai: Signal) -> Signal:
     name = normalize_strategy(strategy)
     if name in {"rules_combo", "small_swing"}:
         return rule
-    # dual_agents — AI agents decide
+    if name == "combined":
+        if rule == "buy" and ai == "buy":
+            return "buy"
+        if rule == "avoid" or ai == "avoid":
+            return "avoid"
+        return "hold"
     return ai
 

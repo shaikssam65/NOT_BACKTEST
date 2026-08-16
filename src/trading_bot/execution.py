@@ -287,11 +287,7 @@ def manage_open_positions(
     as_of: date | None = None,
     fallback_prices: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
-    """
-    Exit on stop-loss always.
-    Target: auto for normal strategies; small_swing targets need human approval
-    (see propose_profit_exits) — we only hint, do not auto-sell target.
-    """
+    """Auto-exit on stop, target, or ≥30% unrealized profit (no human approval)."""
     as_of = as_of or date.today()
     opens = list_open_positions(conn)
     if not opens:
@@ -314,7 +310,6 @@ def manage_open_positions(
         stop = float(pos["stop_loss"])
         target = pos["target"]
         entry = float(pos["entry_price"])
-        strategy = str(pos.get("strategy") or "")
         if ltp is None:
             actions.append({"symbol": symbol, "action": "skip", "reason": "no_ltp"})
             continue
@@ -324,28 +319,23 @@ def manage_open_positions(
             continue
 
         pnl_pct = ((ltp - entry) / entry) * 100.0 if entry > 0 else 0.0
-        # small_swing (or any ≥30% profit): do not auto-sell — human approval
-        if strategy == "small_swing" or pnl_pct >= profit_threshold:
-            if target is not None and ltp >= float(target):
-                actions.append(
-                    {
-                        "symbol": symbol,
-                        "action": "await_approval",
-                        "ltp": ltp,
-                        "pnl_pct": round(pnl_pct, 2),
-                        "note": f"+{pnl_pct:.1f}% — approve sell in UI (not auto-sold)",
-                    }
-                )
-            else:
-                actions.append(
-                    {
-                        "symbol": symbol,
-                        "action": "hold",
-                        "ltp": ltp,
-                        "pnl_pct": round(pnl_pct, 2),
-                        "note": "Waiting; profit sells need approval when ≥ threshold",
-                    }
-                )
+        if pnl_pct >= profit_threshold:
+            result = place_sell(
+                conn,
+                settings,
+                position_id=pos["id"],
+                exit_price=ltp,
+                reason=f"auto_profit_{profit_threshold:.0f}pct",
+            )
+            actions.append(
+                {
+                    "symbol": symbol,
+                    "action": "sell_profit",
+                    "pnl_pct": round(pnl_pct, 2),
+                    **result,
+                    "ltp": ltp,
+                }
+            )
             continue
 
         if target is not None and ltp >= float(target):
@@ -357,7 +347,8 @@ def manage_open_positions(
                     "symbol": symbol,
                     "action": "hold",
                     "ltp": ltp,
-                    "note": "Waiting for stop or target — no time-based force exit.",
+                    "pnl_pct": round(pnl_pct, 2),
+                    "note": f"Waiting for stop, target, or +{profit_threshold:.0f}% auto-sell",
                 }
             )
     return actions

@@ -89,7 +89,7 @@ def run_daily_auto_trade(
             trade_capital=trade_capital,
             progress=report,
         )
-    if strategy not in {"rules_combo", "dual_agents"}:
+    if strategy not in {"rules_combo", "dual_agents", "combined"}:
         strategy = "rules_combo"
     as_of = as_of or date.today()
     mode = "paper" if settings.paper_mode else "live"

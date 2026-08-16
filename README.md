@@ -62,9 +62,14 @@ flowchart TD
 | --- | --- |
 | `rules_combo` | **1** — 6 rule voters (≥3 buys) |
 | `dual_agents` | **2** — Agent-Trend + Agent-Risk both buy |
-| `small_swing` | **3** — 2–3 small stocks (≤₹200), **split capital**, **+30% target**, sells need **your approval** |
+| `combined` | **3** — rules + both agents must agree |
+| `small_swing` | **4** — under ₹50 medium names, weekly 2–3 buys, **auto-sell at +30%** (no approval) |
 
-Legacy names still map to mode 1 or 2.
+**Schedule (local PC):**
+- Daily **10:00 IST** → `scripts/run_daily_10am_ist.ps1` (auto profit sells)
+- Weekly **Monday** → `scripts/run_weekly_under50.ps1` (under-₹50 research + buy)
+
+Legacy names still map to these modes.
 
 ### Daily auto-trade (paper)
 

@@ -18,7 +18,7 @@ from trading_bot.config import Settings
 from trading_bot.models import AISignal, IndicatorSnapshot, Signal
 from trading_bot.strategies import RULE_COMBO_VOTERS, rules_combo_vote
 
-Mode = Literal["rules_combo", "dual_agents"]
+Mode = Literal["rules_combo", "dual_agents", "combined"]
 
 AGENT_TREND = """You are Agent-Trend: a conservative NSE cash-equity DAILY trader (short-horizon swing, not long-term investing).
 Use only the pre-computed indicators. JSON only:
@@ -268,6 +268,104 @@ def decide_dual_agents(
     )
 
 
+def decide_combined(
+    symbol: str,
+    row: pd.Series,
+    indicators: IndicatorSnapshot,
+    historical_data,
+    settings: Settings,
+    conn,
+    *,
+    as_of_date: str | None = None,
+    use_llm: bool = True,
+    min_rule_buys: int = 2,
+) -> DecisionVote:
+    """Mode 3: enough rule buys AND both AI agents buy."""
+    steps: list[str] = ["Mode: combined (rules + dual agents)"]
+    score, _sig, votes = rules_combo_vote(row, min_buys=min_rule_buys)
+    buy_count = sum(1 for s in votes.values() if s == "buy")
+    avoid_count = sum(1 for s in votes.values() if s == "avoid")
+    for name, fn in RULE_COMBO_VOTERS:
+        sc, sig = fn(row)  # type: ignore[operator]
+        steps.append(f"Rule {name}: {sig} (score {sc})")
+    steps.append(f"Rule tally: {buy_count}/6 buys")
+
+    agent_trend = heuristic_ai_signal(indicators, settings)
+    agent_risk = heuristic_ai_signal(indicators, settings)
+    if buy_count >= 1:
+        agent_trend = _call_agent(
+            agent_name="agent_trend",
+            system_prompt=AGENT_TREND,
+            symbol=symbol,
+            historical_data=historical_data,
+            indicators=indicators,
+            settings=settings,
+            conn=conn,
+            as_of_date=as_of_date,
+            use_llm=use_llm,
+        )
+        agent_risk = _call_agent(
+            agent_name="agent_risk",
+            system_prompt=AGENT_RISK,
+            symbol=symbol,
+            historical_data=historical_data,
+            indicators=indicators,
+            settings=settings,
+            conn=conn,
+            as_of_date=as_of_date,
+            use_llm=use_llm,
+        )
+    steps.append(f"Agent-Trend: {agent_trend.signal} ({agent_trend.confidence})")
+    steps.append(f"Agent-Risk: {agent_risk.signal} ({agent_risk.confidence})")
+
+    if avoid_count >= 4:
+        final: Signal = "avoid"
+        reasoning = "Combined AVOID: majority of rules avoid."
+    elif (
+        buy_count >= min_rule_buys
+        and agent_trend.signal == "buy"
+        and agent_risk.signal == "buy"
+    ):
+        final = "buy"
+        reasoning = (
+            f"Combined BUY: {buy_count}/6 rules + both agents. "
+            f"Trend: {agent_trend.reasoning} Risk: {agent_risk.reasoning}"
+        )
+    elif agent_trend.signal == "avoid" or agent_risk.signal == "avoid":
+        final = "avoid"
+        reasoning = "Combined AVOID: agent veto."
+    else:
+        final = "hold"
+        reasoning = (
+            f"Combined HOLD: need ≥{min_rule_buys} rule buys and both agents "
+            f"(got {buy_count}; trend={agent_trend.signal}, risk={agent_risk.signal})."
+        )
+
+    stop = max(agent_trend.stop_loss_pct, agent_risk.stop_loss_pct)
+    target = max(agent_trend.target_pct, agent_risk.target_pct, stop * 1.5)
+    conf = (agent_trend.confidence + agent_risk.confidence) / 2.0
+    final_score = round(score * 0.4 + conf * 0.6 + buy_count * 3, 2)
+    if final != "buy":
+        final_score = round(final_score * 0.4, 2)
+    steps.append(f"FINAL: {final} | stop {stop}% | target {target}%")
+    return DecisionVote(
+        symbol=symbol.upper(),
+        mode="combined",
+        last_price=float(indicators.last_close),
+        rule_votes=votes,
+        rule_buy_count=buy_count,
+        rule_score_avg=float(score),
+        agent_trend=_ai_to_dict(agent_trend),
+        agent_risk=_ai_to_dict(agent_risk),
+        final_signal=final,
+        final_score=final_score,
+        stop_loss_pct=stop,
+        target_pct=target,
+        reasoning=reasoning,
+        steps=steps,
+    )
+
+
 def decide_symbol(
     mode: Mode,
     symbol: str,
@@ -282,6 +380,17 @@ def decide_symbol(
 ) -> DecisionVote:
     if mode == "rules_combo":
         return decide_rules_combo(symbol, row, indicators, settings)
+    if mode == "combined":
+        return decide_combined(
+            symbol,
+            row,
+            indicators,
+            historical_data,
+            settings,
+            conn,
+            as_of_date=as_of_date,
+            use_llm=use_llm,
+        )
     return decide_dual_agents(
         symbol,
         indicators,
@@ -309,6 +418,18 @@ def vote_symbol(
 ) -> DecisionVote:
     if mode == "rules_combo":
         return decide_rules_combo(symbol, row, indicators, settings, min_rule_buys=min_rule_buys)
+    if mode == "combined":
+        return decide_combined(
+            symbol,
+            row,
+            indicators,
+            historical_data,
+            settings,
+            conn,
+            as_of_date=as_of_date,
+            use_llm=use_llm,
+            min_rule_buys=min_rule_buys,
+        )
     return decide_dual_agents(
         symbol,
         indicators,

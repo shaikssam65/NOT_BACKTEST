@@ -56,12 +56,15 @@ auto_trade:
   daily_stop_loss_pct: 1.5
   daily_target_pct: 3.0
 
-# Small-stock swing: 2–3 cheap names, equal capital split, +30% target (human-approved sells).
+# Under ₹50 weekly buys; daily 10:00 IST auto-sell at ≥30% profit (no approval).
 small_swing:
   pick_count: 3
-  max_price: 200.0
-  prefer_rank_above: 50
+  max_price: 50.0
+  prefer_rank_above: 30
+  prefer_rank_below: 180
   target_pct: 30.0
   stop_loss_pct: 8.0
   min_profit_sell_pct: 30.0
   equal_split: true
+  daily_exit_ist_hour: 10
+  weekly_buy_weekday: 0

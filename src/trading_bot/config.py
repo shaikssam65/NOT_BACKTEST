@@ -84,17 +84,20 @@ class AutoTradeConfig:
 
 @dataclass(frozen=True)
 class SmallSwingConfig:
-    """Small-stock swing: split capital across 2–3 names, exit at +30% with approval."""
+    """Under-₹50 established names: weekly buys, auto-sell at +30% (no human approval)."""
 
     pick_count: int = 3
-    max_price: float = 200.0
-    # Prefer names outside mega-caps when possible.
-    prefer_rank_above: int = 50
+    max_price: float = 50.0
+    # Medium established: avoid mega-caps and micro junk.
+    prefer_rank_above: int = 30
+    prefer_rank_below: int = 180
     target_pct: float = 30.0
     stop_loss_pct: float = 8.0
     min_profit_sell_pct: float = 30.0
-    # Equal capital slice per pick (not risk-% sizing).
     equal_split: bool = True
+    # Schedule hints (scripts enforce these)
+    daily_exit_ist_hour: int = 10
+    weekly_buy_weekday: int = 0  # Monday
 
 
 def _nonempty(value: str | None) -> str | None:

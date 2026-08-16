@@ -55,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     auto.add_argument("--capital", type=float, default=None, help="₹ capital for position sizing")
     auto.add_argument("--no-llm", action="store_true")
 
+    sub.add_parser(
+        "take-profits",
+        help="Auto-sell bot (+ optional Kite) positions at ≥30% profit — for 10:00 IST daily job",
+    )
+
     serve = sub.add_parser("serve", help="Start the FastAPI server")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -150,6 +155,12 @@ def main(argv: list[str] | None = None) -> int:
             trade_capital=args.capital,
         )
         _print(result)
+        return 0
+
+    if args.command == "take-profits":
+        from trading_bot.small_swing import auto_take_profits
+
+        _print(auto_take_profits(conn, settings))
         return 0
 
     if args.command == "serve":

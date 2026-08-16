@@ -11,14 +11,15 @@ from tests.conftest import trending_ohlcv
 def test_only_two_primary_strategies():
     assert "rules_combo" in PRIMARY_STRATEGIES
     assert "dual_agents" in PRIMARY_STRATEGIES
+    assert "combined" in PRIMARY_STRATEGIES
     assert "small_swing" in PRIMARY_STRATEGIES
-    assert len(PRIMARY_STRATEGIES) == 3
+    assert len(PRIMARY_STRATEGIES) == 4
 
 
 def test_normalize_aliases_to_two_modes():
     assert normalize_strategy("rules_combo") == "rules_combo"
-    assert normalize_strategy("ensemble") == "rules_combo"
-    assert normalize_strategy("combined") == "dual_agents"
+    assert normalize_strategy("ensemble") == "combined"
+    assert normalize_strategy("combined") == "combined"
     assert normalize_strategy("dual_agents") == "dual_agents"
     assert normalize_strategy("agents") == "dual_agents"
 
