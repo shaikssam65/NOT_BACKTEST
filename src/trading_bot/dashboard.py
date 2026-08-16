@@ -28,6 +28,7 @@ from trading_bot.kite_auth import (
 from trading_bot.runtime import boot, build_provider
 from trading_bot.selection import list_selections, run_daily_selection
 from trading_bot.universe import get_universe
+from trading_bot.data_provider import as_date
 
 # set_page_config lives in app.py (must be first Streamlit call on Cloud).
 # Local `python -m trading_bot dashboard` still needs it here when this file is the entry.
@@ -206,6 +207,12 @@ def _backtest_tab(settings, conn, provider) -> None:
         "Use live OpenAI on each candidate bar (slow and costly). Leave off for the heuristic AI filter.",
         value=False,
     )
+    kite_ok = bool(profile_status(settings).get("ok"))
+    if kite_ok:
+        st.success("Kite is connected → backtest will **prefer Kite history** (Yahoo only if Kite fails).")
+    else:
+        st.warning("Kite is **not** connected → backtest will use **Yahoo Finance** history.")
+
     if st.button("Run backtest", type="primary"):
         with st.spinner(f"Backtesting {symbol} / {strategy}…"):
             try:
@@ -220,8 +227,13 @@ def _backtest_tab(settings, conn, provider) -> None:
                     conn,
                     use_llm=use_llm,
                 )
-                st.session_state["backtest"] = result.to_dict()
-                st.session_state["backtest_export_paths"] = try_save_csv_files(result.to_dict())
+                payload = result.to_dict()
+                src = provider.cache.source_summary(symbol, as_date(start), as_date(end))
+                payload["price_data_source"] = src["label"]
+                payload["kite_bars"] = src["kite_bars"]
+                payload["yahoo_bars"] = src["yahoo_bars"]
+                st.session_state["backtest"] = payload
+                st.session_state["backtest_export_paths"] = try_save_csv_files(payload)
             except Exception as exc:
                 st.error(str(exc))
                 return
@@ -230,6 +242,21 @@ def _backtest_tab(settings, conn, provider) -> None:
     if not payload:
         st.caption("Pick a name and date range, then run. Repeated identical runs are served from cache.")
         return
+
+    source = str(payload.get("price_data_source") or "unknown")
+    kite_bars = int(payload.get("kite_bars") or 0)
+    yahoo_bars = int(payload.get("yahoo_bars") or 0)
+    if source == "kite":
+        st.success(f"**Price data source: Kite** ({kite_bars} bars in cache for this range).")
+    elif source == "yahoo":
+        st.warning(f"**Price data source: Yahoo** ({yahoo_bars} bars in cache for this range).")
+    elif source == "mixed":
+        st.info(
+            f"**Price data source: mixed** — Kite bars: {kite_bars}, Yahoo bars: {yahoo_bars}. "
+            "Older cache may mix providers."
+        )
+    else:
+        st.caption("Price data source: unknown (no OHLCV cache rows yet).")
 
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Total return", f"{payload['total_return_pct']:.2f}%")

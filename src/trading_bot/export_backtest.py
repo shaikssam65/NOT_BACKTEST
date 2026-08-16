@@ -31,6 +31,9 @@ def summary_frame(payload: dict[str, Any]) -> pd.DataFrame:
                 "wins": payload.get("wins"),
                 "losses": payload.get("losses"),
                 "cached": payload.get("cached"),
+                "price_data_source": payload.get("price_data_source"),
+                "kite_bars": payload.get("kite_bars"),
+                "yahoo_bars": payload.get("yahoo_bars"),
                 "commentary": payload.get("commentary"),
                 "exported_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
             }

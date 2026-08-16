@@ -92,6 +92,37 @@ class SqliteCache:
         )
         self.conn.commit()
 
+    def source_summary(self, symbol: str, start: date, end: date) -> dict[str, int | str]:
+        """How many cached bars came from kite vs yahoo for this window."""
+        rows = self.conn.execute(
+            """
+            SELECT source, COUNT(*) AS n
+            FROM ohlcv
+            WHERE symbol = ? AND date >= ? AND date <= ?
+            GROUP BY source
+            """,
+            (symbol.upper(), start.isoformat(), end.isoformat()),
+        ).fetchall()
+        counts = {str(row["source"]): int(row["n"]) for row in rows}
+        kite_n = counts.get("kite", 0)
+        yahoo_n = counts.get("yahoo", 0)
+        other = sum(v for k, v in counts.items() if k not in {"kite", "yahoo"})
+        if kite_n and not yahoo_n and not other:
+            label = "kite"
+        elif yahoo_n and not kite_n and not other:
+            label = "yahoo"
+        elif kite_n or yahoo_n or other:
+            label = "mixed"
+        else:
+            label = "unknown"
+        return {
+            "label": label,
+            "kite_bars": kite_n,
+            "yahoo_bars": yahoo_n,
+            "other_bars": other,
+            "total_bars": kite_n + yahoo_n + other,
+        }
+
 
 class YahooProvider:
     def get_ohlcv(self, symbol: str, start: date, end: date) -> pd.DataFrame:
