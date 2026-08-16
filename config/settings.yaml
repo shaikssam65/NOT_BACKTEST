@@ -1,0 +1,49 @@
+# All tunable parameters live here — nothing important should be hardcoded.
+# PAPER_MODE is gated by the PAPER_MODE env var (defaults to true).
+# Setting paper_mode: false in this file is NOT enough to enable live orders.
+
+paper_mode: true
+capital: 100000.0
+
+selection:
+  pick_count_min: 3
+  pick_count_max: 4
+  min_from_top100: 3
+  max_below_price: 1
+  below_price_threshold: 50.0
+  lookback_days: 60
+  candidate_pool: 20
+  # Pre-filter: only send this many names to the LLM after rule-based ranking.
+
+ai:
+  model: gpt-4o
+  temperature: 0.2
+  max_tokens: 400
+  timeout_seconds: 30
+
+indicators:
+  sma_fast: 20
+  sma_slow: 50
+  ema_fast: 12
+  ema_slow: 26
+  rsi_period: 14
+  atr_period: 14
+  volume_sma: 20
+
+backtest:
+  slippage_pct: 0.05
+  commission_pct: 0.03
+  default_stop_loss_pct: 2.0
+  default_target_pct: 4.0
+  atr_stop_mult: 2.0
+  # Enter on next bar open after a buy signal (no same-bar lookahead).
+  enter_on_next_open: true
+
+# Consumed by backtests now; Module 4 (Phase 3) will enforce these as a hard gate.
+risk:
+  risk_per_trade_pct: 1.0
+  daily_loss_limit_pct: 3.0
+  max_concurrent_positions: 4
+  allow_averaging_down: false
+  min_stop_loss_pct: 0.5
+  max_stop_loss_pct: 8.0

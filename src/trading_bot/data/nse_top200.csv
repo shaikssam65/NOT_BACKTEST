@@ -1,0 +1,201 @@
+rank,symbol,name,last_price
+1,RELIANCE,Reliance Industries,1310.0
+2,BHARTIARTL,Bharti Airtel,1992.1
+3,HDFCBANK,HDFC Bank,727.0
+4,ICICIBANK,ICICI Bank,1417.0
+5,SBIN,State Bank of India,1067.7
+6,TCS,Tata Consultancy Services,2361.0
+7,BAJFINANCE,Bajaj Finance,1087.0
+8,LT,Larsen and Toubro,4057.0
+9,HINDUNILVR,Hindustan Unilever,2077.0
+10,INFY,Infosys,1169.2
+11,SUNPHARMA,Sun Pharmaceutical,1930.0
+12,TITAN,Titan Company,5056.2
+13,M&M,Mahindra and Mahindra,3428.3
+14,MARUTI,Maruti Suzuki,13834.0
+15,ADANIPOWER,Adani Power,205.25
+16,ADANIENT,Adani Enterprises,3035.1
+17,ADANIPORTS,Adani Ports and SEZ,1700.0
+18,KOTAKBANK,Kotak Mahindra Bank,391.15
+19,AXISBANK,Axis Bank,1217.4
+20,HCLTECH,HCL Technologies,1360.0
+21,ITC,ITC,278.2
+22,ULTRACEMCO,UltraTech Cement,11619.0
+23,HAL,Hindustan Aeronautics,5029.9
+24,NTPC,NTPC,340.0
+25,BAJAJ-AUTO,Bajaj Auto,11700.0
+26,BAJAJFINSV,Bajaj Finserv,2008.3
+27,JSWSTEEL,JSW Steel,1270.0
+28,ETERNAL,Eternal,318.5
+29,BEL,Bharat Electronics,410.8
+30,ONGC,Oil and Natural Gas Corp,236.4
+31,NESTLEIND,Nestle India,1499.1
+32,DMART,Avenue Supermarts,4060.0
+33,ASIANPAINT,Asian Paints,2696.3
+34,COALINDIA,Coal India,407.1
+35,POWERGRID,Power Grid Corporation,266.05
+36,HINDZINC,Hindustan Zinc,561.9
+37,HINDALCO,Hindalco Industries,1029.5
+38,TATASTEEL,Tata Steel,183.5
+39,DIVISLAB,Divis Laboratories,8477.0
+40,ADANIGREEN,Adani Green Energy,1348.0
+41,EICHERMOT,Eicher Motors,8066.5
+42,GRASIM,Grasim Industries,3248.7
+43,SHRIRAMFIN,Shriram Finance,1122.0
+44,INDIGO,InterGlobe Aviation,5310.0
+45,TVSMOTOR,TVS Motor Company,4307.0
+46,IOC,Indian Oil Corporation,139.4
+47,ADANIENSOL,Adani Energy Solutions,1616.0
+48,WIPRO,Wipro,184.0
+49,SOLARINDS,Solar Industries India,19969.0
+50,SBILIFE,SBI Life Insurance,1795.0
+51,HYUNDAI,Hyundai Motor India,2199.0
+52,MOTHERSON,Samvardhana Motherson,168.3
+53,TMCV,Tata Motors,474.3
+54,PIDILITIND,Pidilite Industries,1693.0
+55,DLF,DLF,665.0
+56,TORNTPHARM,Torrent Pharmaceuticals,4833.0
+57,ABB,ABB India,7649.0
+58,CHOLAFIN,Cholamandalam Investment,1894.4
+59,TECHM,Tech Mahindra,1632.8
+60,POWERINDIA,Hitachi Energy India,35700.0
+61,JIOFIN,Jio Financial Services,249.05
+62,TRENT,Trent,2978.0
+63,TATACAP,Tata Capital,364.2
+64,ICICIAMC,ICICI Prudential AMC,3097.9
+65,IDEA,Vodafone Idea,14.11
+66,CUMMINSIND,Cummins India,5400.0
+67,VBL,Varun Beverages,435.0
+68,BHEL,Bharat Heavy Electricals,421.7
+69,UNIONBANK,Union Bank of India,187.38
+70,SIEMENS,Siemens,3940.0
+71,CGPOWER,CG Power and Industrial,890.15
+72,LTM,LTIMindtree,4715.0
+73,POLYCAB,Polycab India,9240.0
+74,BOSCHLTD,Bosch,47100.0
+75,BPCL,Bharat Petroleum,319.45
+76,PNB,Punjab National Bank,118.0
+77,BRITANNIA,Britannia Industries,5558.0
+78,BANKBARODA,Bank of Baroda,248.22
+79,APOLLOHOSP,Apollo Hospitals,8920.5
+80,BAJAJHLDNG,Bajaj Holdings,11475.0
+81,ENRIN,Siemens Energy India,3536.3
+82,LODHA,Lodha Developers,1243.9
+83,PFC,Power Finance Corporation,376.0
+84,TMPV,Tata Motors Passenger Vehicles,334.5
+85,GROWW,Billionbrains Garage Ventures,196.17
+86,TATAPOWER,Tata Power,382.05
+87,INDIANB,Indian Bank,894.95
+88,CANBK,Canara Bank,131.25
+89,LGEINDIA,LG Electronics India,1729.7
+90,CIPLA,Cipla,1450.0
+91,HEROMOTOCO,Hero MotoCorp,5790.0
+92,HDFCLIFE,HDFC Life Insurance,535.85
+93,GAIL,GAIL India,174.9
+94,IRFC,Indian Railway Finance Corp,87.57
+95,ZYDUSLIFE,Zydus Lifesciences,1135.2
+96,MUTHOOTFIN,Muthoot Finance,2842.0
+97,MARICO,Marico,865.2
+98,UNITDSPR,United Spirits,1536.0
+99,JINDALSTEL,Jindal Steel,1091.5
+100,GMRAIRPORT,GMR Airports,101.51
+101,TATACONSUM,Tata Consumer Products,1079.5
+102,HDFCAMC,HDFC AMC,2485.0
+103,LENSKART,Lenskart Solutions,611.85
+104,ABCAPITAL,Aditya Birla Capital,401.0
+105,VEDL,Vedanta,267.5
+106,MAZDOCK,Mazagon Dock Shipbuilders,2580.0
+107,AMBUJACEM,Ambuja Cements,417.5
+108,OFSS,Oracle Financial Services,11828.0
+109,PAYTM,One 97 Communications,1603.0
+110,INDHOTEL,Indian Hotels Company,720.0
+111,LUPIN,Lupin,2235.0
+112,INDUSTOWER,Indus Towers,384.35
+113,ASHOKLEY,Ashok Leyland,171.64
+114,DRREDDY,Dr Reddys Laboratories,1200.0
+115,MANKIND,Mankind Pharma,2425.2
+116,BHARATFORG,Bharat Forge,2065.0
+117,JSWENERGY,JSW Energy,560.0
+118,MAXHEALTH,Max Healthcare,1008.6
+119,LAURUSLABS,Laurus Labs,1787.3
+120,GODREJCP,Godrej Consumer Products,934.3
+121,NYKAA,FSN E-Commerce Ventures,331.0
+122,AUROPHARMA,Aurobindo Pharma,1622.1
+123,SHREECEM,Shree Cement,24795.0
+124,RECLTD,REC,335.0
+125,PERSISTENT,Persistent Systems,5580.0
+126,NAUKRI,Info Edge India,1343.0
+127,FEDERALBNK,Federal Bank,351.3
+128,DIXON,Dixon Technologies,14130.0
+129,HAVELLS,Havells India,1298.0
+130,ICICIGI,ICICI Lombard,1630.0
+131,AUBANK,AU Small Finance Bank,1081.9
+132,POLICYBZR,PB Fintech,1741.0
+133,INDUSINDBK,IndusInd Bank,1020.8
+134,HINDPETRO,Hindustan Petroleum,373.5
+135,NHPC,NHPC,76.9
+136,SRF,SRF,2606.0
+137,WAAREEENER,Waaree Energies,2682.0
+138,LTF,L&T Finance,306.3
+139,SWIGGY,Swiggy,276.3
+140,OIL,Oil India,468.5
+141,MCX,Multi Commodity Exchange,2911.5
+142,NMDC,NMDC,84.4
+143,IDFCFIRSTB,IDFC First Bank,85.69
+144,ATGL,Adani Total Gas,654.05
+145,DABUR,Dabur India,405.25
+146,YESBANK,Yes Bank,22.67
+147,FORTIS,Fortis Healthcare,929.0
+148,SAIL,Steel Authority of India,169.51
+149,NATIONALUM,National Aluminium,376.0
+150,PRESTIGE,Prestige Estates,1592.5
+151,PHOENIXLTD,Phoenix Mills,1890.0
+152,OBEROIRLTY,Oberoi Realty,1846.0
+153,BIOCON,Biocon,417.0
+154,BANKINDIA,Bank of India,144.1
+155,GLENMARK,Glenmark Pharmaceuticals,2318.4
+156,SUZLON,Suzlon Energy,47.1
+157,ALKEM,Alkem Laboratories,5368.0
+158,KALYANKJIL,Kalyan Jewellers,608.25
+159,RADICO,Radico Khaitan,4650.0
+160,COROMANDEL,Coromandel International,2095.3
+161,COFORGE,Coforge,1812.0
+162,SBICARD,SBI Cards,633.0
+163,GODREJPROP,Godrej Properties,1990.0
+164,APLAPOLLO,APL Apollo Tubes,2083.3
+165,M&MFIN,Mahindra Finance,390.1
+166,MRF,MRF,133490.0
+167,KEI,KEI Industries,5700.0
+168,MOTILALOFS,Motilal Oswal Financial,903.7
+169,COLPAL,Colgate-Palmolive India,1981.0
+170,MFSL,Max Financial Services,1538.1
+171,TIINDIA,Tube Investments of India,2733.5
+172,BDL,Bharat Dynamics,1398.0
+173,VMM,Vishal Mega Mart,105.2
+174,TATACOMM,Tata Communications,1718.1
+175,MPHASIS,Mphasis,2545.0
+176,360ONE,360 One WAM,1180.0
+177,UPL,UPL,563.0
+178,RVNL,Rail Vikas Nigam,227.35
+179,PREMIERENE,Premier Energies,1017.3
+180,SUPREMEIND,Supreme Industries,3558.9
+181,VOLTAS,Voltas,1320.5
+182,ASTRAL,Astral,1556.3
+183,PAGEIND,Page Industries,36750.0
+184,EXIDEIND,Exide Industries,476.1
+185,CONCOR,Container Corporation,527.0
+186,IRCTC,IRCTC,497.5
+187,COCHINSHIP,Cochin Shipyard,1496.5
+188,PATANJALI,Patanjali Foods,352.0
+189,HUDCO,HUDCO,189.99
+190,PIIND,PI Industries,2490.1
+191,TATAINVEST,Tata Investment Corporation,667.3
+192,GODFRYPHLP,Godfrey Phillips India,2149.0
+193,JUBLFOOD,Jubilant Foodworks,504.1
+194,IREDA,Indian Renewable Energy,116.25
+195,BLUESTARCO,Blue Star,1508.0
+196,LICHSGFIN,LIC Housing Finance,500.0
+197,TATAELXSI,Tata Elxsi,3772.7
+198,KPITTECH,KPIT Technologies,614.0
+199,GVT&D,GE Vernova T&D India,4350.0
+200,BSE,BSE,3447.0
