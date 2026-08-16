@@ -347,8 +347,9 @@ def main() -> None:
     st.markdown("---")
     st.subheader("2 · Research 2–3 stocks")
     st.caption(
-        "Choose one or more price ranges, then Suggest only (check picks) or Place buy orders. "
-        "Capital is split equally across the final picks."
+        "Universe: **NSE Top 200** (Nifty 200). Under ₹100 only a few names exist "
+        "(e.g. IDEA, YESBANK, SUZLON, IRFC, NHPC). Choose one or more price ranges, "
+        "then Suggest only or Place buy orders."
     )
     band_labels = [b[0] for b in PRICE_BANDS]
     price_bands = st.multiselect(
@@ -446,6 +447,16 @@ def main() -> None:
                 with st.expander("Finnhub market news"):
                     for n in buy_report["market_news"]:
                         st.write(f"- {n.get('headline')}")
+        elif buy_report.get("in_band"):
+            st.markdown("**In your price bands (did not become final picks)**")
+            st.dataframe(
+                pd.DataFrame(buy_report["in_band"])[
+                    [c for c in ("symbol", "name", "price", "rank", "rule_buys", "rule_score", "rule_signal")
+                     if c in pd.DataFrame(buy_report["in_band"]).columns]
+                ],
+                hide_index=True,
+                use_container_width=True,
+            )
         if buy_report.get("orders"):
             st.markdown("**Orders**")
             st.dataframe(pd.DataFrame(buy_report["orders"]), hide_index=True, use_container_width=True)

@@ -39,6 +39,16 @@ PRICE_BANDS: list[tuple[str, float, float]] = [
 ]
 DEFAULT_PRICE_BANDS = ["50-100", "100-200", "200-500", "500-1000"]
 
+# Research scans this list (Nifty 200 / bundled nse_top200.csv), not the full NSE.
+UNIVERSE_LABEL = "NSE Top 200 (Nifty 200)"
+
+
+def _bands_max_hi(band_labels: list[str]) -> float:
+    """Highest upper bound among selected price bands."""
+    selected = {str(x) for x in band_labels}
+    his = [hi for label, _lo, hi in PRICE_BANDS if label in selected]
+    return max(his) if his else 5000.0
+
 
 def _noop(_: str) -> None:
     return None
@@ -600,21 +610,32 @@ def research_and_buy(
     bands = list(price_bands) if price_bands else [b[0] for b in PRICE_BANDS]
     mode = "paper" if settings.paper_mode else "live"
     action = "place buys" if place_orders else "suggest only"
+    # Under-₹100 names are rare in Top 200 — widen rank window and ease vote bar.
+    cheap_bands = _bands_max_hi(bands) <= 100.0
+    min_rank = 1 if cheap_bands else MIN_RANK
+    max_rank = 200 if cheap_bands else MAX_RANK
+    min_buys = 1 if cheap_bands else 2
+    min_score = 45.0 if cheap_bands else 60.0
 
     log(
         f"Research ({action}) · capital ₹{capital:,.0f} · picks={pick_count} · "
         f"bands={','.join(bands)} · mode={mode}"
+    )
+    log(
+        f"Universe: {UNIVERSE_LABEL} · rank {min_rank}-{max_rank}"
+        + (" · relaxed rules (cheap bands)" if cheap_bands else "")
     )
     log("Step 1 — Score medium established names (SMA/EMA/RSI/trend/momentum/volume)…")
 
     universe = get_universe(conn)
     lookback = as_of - timedelta(days=settings.selection.lookback_days + 20)
     scored: list[dict[str, Any]] = []
+    in_band: list[dict[str, Any]] = []
     scanned = 0
 
     for stock in universe:
         rank = int(stock.market_cap_rank)
-        if rank < MIN_RANK or rank > MAX_RANK:
+        if rank < min_rank or rank > max_rank:
             continue
         df = provider.get_ohlcv(stock.symbol, lookback, as_of)
         if df.empty or len(df) < settings.indicators.sma_slow + 5:
@@ -625,31 +646,47 @@ def research_and_buy(
         if price <= 0 or not price_in_selected_bands(price, bands):
             continue
         scanned += 1
-        score, signal, votes = rules_combo_vote(row, min_buys=2)
+        score, signal, votes = rules_combo_vote(row, min_buys=min_buys)
         buy_n = sum(1 for v in votes.values() if v == "buy")
-        if signal != "buy" and buy_n < 2:
-            continue
-        if signal != "buy" and score < 60:
-            continue
-        scored.append(
-            {
-                "symbol": stock.symbol,
-                "name": stock.name,
-                "rank": rank,
-                "price": round(price, 2),
-                "rule_score": float(score),
-                "rule_signal": signal,
-                "rule_buys": buy_n,
-                "rule_votes": votes,
-                "snap": snapshot_from_frame(indicated),
-            }
-        )
+        cand = {
+            "symbol": stock.symbol,
+            "name": stock.name,
+            "rank": rank,
+            "price": round(price, 2),
+            "rule_score": float(score),
+            "rule_signal": signal,
+            "rule_buys": buy_n,
+            "rule_votes": votes,
+            "snap": snapshot_from_frame(indicated),
+        }
+        in_band.append({k: v for k, v in cand.items() if k != "snap"})
+        keep = buy_n >= min_buys or signal == "buy"
+        if not keep and cheap_bands and float(score) >= min_score:
+            keep = True
+        if keep:
+            scored.append(cand)
         if scanned % 40 == 0:
             log(f"  …scanned {scanned}")
 
+    # If still empty on cheap bands, take top in-band by score so Suggest isn't blank.
+    if not scored and cheap_bands and in_band:
+        log("  No rule buys — suggesting best in-band names by score (cheap-band fallback)")
+        ranked_ib = sorted(in_band, key=lambda c: (c["rule_buys"], c["rule_score"]), reverse=True)
+        for c in ranked_ib[: max(pick_count, 3)]:
+            df = provider.get_ohlcv(c["symbol"], lookback, as_of)
+            indicated = add_indicators(df, settings.indicators)
+            row = dict(c)
+            row["snap"] = snapshot_from_frame(indicated)
+            scored.append(row)
+
     scored.sort(key=lambda c: (c["rule_buys"], c["rule_score"]), reverse=True)
     shortlist = scored[:12]
-    log(f"  Rule shortlist: {len(shortlist)} / scanned {scanned}")
+    log(f"  In-band: {scanned} · rule shortlist: {len(shortlist)}")
+    if scanned == 0:
+        log(
+            "  Tip: NSE Top 200 has very few names under ₹100 "
+            "(e.g. IDEA, YESBANK, SUZLON, IRFC, NHPC, NMDC, IDFCFIRSTB)."
+        )
 
     if settings.finnhub_ready:
         log("Step 2 — Finnhub news (fallback → Kite live quote if empty)…")
@@ -680,20 +717,35 @@ def research_and_buy(
     log(f"Step 3 — Final picks: {[p['symbol'] for p in picks] or ['none']}")
 
     if not picks:
+        sample = ", ".join(
+            f"{c['symbol']} ₹{c['price']}" for c in sorted(in_band, key=lambda x: x["price"])[:8]
+        )
+        if scanned == 0:
+            note = (
+                f"Universe is {UNIVERSE_LABEL} — almost no names trade under your bands today. "
+                "Try 100-200 / 200-500, or use Manual buy for a specific symbol."
+            )
+        else:
+            note = (
+                f"No picks after rules + Finnhub/Kite. In-band today ({scanned}): {sample or 'n/a'}. "
+                "Those names did not clear the vote bar."
+            )
         return {
             "ok": True,
             "mode": mode,
             "place_orders": place_orders,
             "price_bands": bands,
+            "universe": UNIVERSE_LABEL,
             "capital": capital,
             "scanned": scanned,
+            "in_band": in_band[:20],
             "market_news": market_news,
             "shortlist": [
                 {k: v for k, v in c.items() if k != "snap"} for c in shortlist[:8]
             ],
             "picks": [],
             "orders": [],
-            "note": "No stocks passed rules + price bands + Finnhub/Kite filter today.",
+            "note": note,
         }
 
     slice_cap = capital / len(picks)
