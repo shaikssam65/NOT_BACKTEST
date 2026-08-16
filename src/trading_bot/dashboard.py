@@ -7,7 +7,10 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from trading_bot.backtest import VALID_STRATEGIES, backtest
+from trading_bot.backtest import backtest
+from trading_bot.strategies import STRATEGY_LABELS, VALID_STRATEGIES
+from trading_bot.auto_trade import run_daily_auto_trade
+from trading_bot.execution import list_open_positions, manage_open_positions
 from trading_bot.config import ROOT, load_settings
 from trading_bot.data_provider import as_date
 from trading_bot.export_backtest import (
@@ -214,8 +217,15 @@ def _backtest_tab(settings, conn, provider) -> None:
     default_end = date.today()
     default_start = default_end - timedelta(days=365)
     c1, c2, c3, c4 = st.columns(4)
+    strategy_options = list(VALID_STRATEGIES)
+    default_ix = strategy_options.index("combined") if "combined" in strategy_options else 0
     symbol = c1.selectbox("Stock", symbols, index=symbols.index("RELIANCE") if "RELIANCE" in symbols else 0)
-    strategy = c2.selectbox("Strategy", list(VALID_STRATEGIES), index=2)
+    strategy = c2.selectbox(
+        "Strategy",
+        strategy_options,
+        index=default_ix,
+        format_func=lambda s: STRATEGY_LABELS.get(s, s),
+    )
     start = c3.date_input("Start", value=default_start)
     end = c4.date_input("End", value=default_end)
     capital = st.number_input("Capital (₹)", min_value=10000.0, value=float(settings.capital), step=10000.0)
@@ -324,6 +334,76 @@ def _backtest_tab(settings, conn, provider) -> None:
     paths = st.session_state.get("backtest_export_paths") or {}
     if paths:
         st.caption("Also saved on server disk (local/ephemeral): " + ", ".join(paths.values()))
+
+
+def _auto_trade_tab(settings, conn, provider) -> None:
+    st.subheader("Daily auto-trade (paper by default)")
+    st.markdown(
+        """
+Runs: **manage exits** (stop/target) → **select 3–4 stocks** with your strategy → **place orders**  
+through the risk gate. With `PAPER_MODE=true` (default) fills are **simulated** — no real money.
+"""
+    )
+    if settings.paper_mode:
+        st.success("PAPER_MODE is ON — orders are paper fills only.")
+    else:
+        st.error("PAPER_MODE is OFF — this can send **live** Zerodha orders. Only for registered algo use.")
+
+    strategy = st.selectbox(
+        "Strategy for today",
+        list(VALID_STRATEGIES),
+        index=list(VALID_STRATEGIES).index("combined"),
+        format_func=lambda s: STRATEGY_LABELS.get(s, s),
+        key="auto_strategy",
+    )
+    use_llm = st.checkbox("Use OpenAI filter (for *_ai / combined)", value=settings.openai_ready, key="auto_llm")
+    c1, c2 = st.columns(2)
+    if c1.button("Run daily auto-trade now", type="primary"):
+        with st.spinner("Selecting + placing paper/live orders…"):
+            try:
+                result = run_daily_auto_trade(
+                    conn,
+                    settings,
+                    provider,
+                    strategy=strategy,
+                    use_llm=use_llm,
+                    manage_exits=True,
+                )
+                st.session_state["auto_trade"] = result
+            except Exception as exc:
+                st.error(str(exc))
+                return
+    if c2.button("Manage exits only (check SL/target vs LTP)"):
+        try:
+            actions = manage_open_positions(conn, settings)
+            st.session_state["exit_actions"] = actions
+        except Exception as exc:
+            st.error(str(exc))
+
+    result = st.session_state.get("auto_trade")
+    if result:
+        st.write(
+            f"**Mode:** {result['mode']} · **Strategy:** {result['strategy']} · "
+            f"**Picks:** {', '.join(result['picks']) or 'none'}"
+        )
+        st.caption(result.get("note") or "")
+        if result.get("orders"):
+            st.dataframe(pd.DataFrame(result["orders"]), hide_index=True, use_container_width=True)
+        if result.get("exits"):
+            st.markdown("**Exit checks**")
+            st.dataframe(pd.DataFrame(result["exits"]), hide_index=True, use_container_width=True)
+
+    opens = list_open_positions(conn)
+    st.markdown("### Open positions")
+    if opens:
+        st.dataframe(pd.DataFrame(opens), hide_index=True, use_container_width=True)
+    else:
+        st.caption("No open positions.")
+
+    exits = st.session_state.get("exit_actions")
+    if exits and not result:
+        st.markdown("**Last exit check**")
+        st.dataframe(pd.DataFrame(exits), hide_index=True, use_container_width=True)
 
 
 def _selection_tab(settings, conn, provider) -> None:
@@ -450,8 +530,8 @@ def main() -> None:
             "and the same URL on the Kite app, then reboot."
         )
 
-    tab_setup, tab_bt, tab_sel, tab_px = st.tabs(
-        ["Setup & Kite", "Backtest", "Daily selection", "Live quotes"]
+    tab_setup, tab_bt, tab_sel, tab_auto, tab_px = st.tabs(
+        ["Setup & Kite", "Backtest", "Daily selection", "Auto-trade", "Live quotes"]
     )
     with tab_setup:
         _setup_tab(settings)
@@ -459,6 +539,8 @@ def main() -> None:
         _backtest_tab(settings, conn, provider)
     with tab_sel:
         _selection_tab(settings, conn, provider)
+    with tab_auto:
+        _auto_trade_tab(settings, conn, provider)
     with tab_px:
         _quotes_tab(settings, conn)
 

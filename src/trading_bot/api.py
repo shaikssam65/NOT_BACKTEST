@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import date
-from typing import Literal
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -11,7 +10,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from trading_bot.backtest import VALID_STRATEGIES, backtest
+from trading_bot.backtest import backtest
+from trading_bot.strategies import VALID_STRATEGIES
+from trading_bot.auto_trade import run_daily_auto_trade
 from trading_bot.runtime import boot, build_provider, configure_logging
 from trading_bot.selection import list_selections, run_daily_selection
 from trading_bot.universe import get_universe, refresh_universe
@@ -61,11 +62,17 @@ app.add_middleware(
 
 class BacktestRequest(BaseModel):
     symbol: str
-    strategy_name: Literal["rule_based", "ai_filtered", "combined"] = "combined"
+    strategy_name: str = "combined"
     start_date: date
     end_date: date
     capital: float = Field(default=100000, gt=0)
     use_llm: bool = False
+
+
+class AutoTradeRequest(BaseModel):
+    strategy: str = "combined"
+    date: date | None = None
+    use_llm: bool = True
 
 
 class SelectRequest(BaseModel):
@@ -153,12 +160,18 @@ def selections(as_of: date | None = Query(default=None, alias="date")) -> dict:
 
 @app.post("/backtest")
 def run_backtest(req: BacktestRequest) -> dict:
-    if req.strategy_name not in VALID_STRATEGIES:
+    from trading_bot.strategies import STRATEGY_LABELS, normalize_strategy
+
+    try:
+        strategy = normalize_strategy(req.strategy_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if strategy not in STRATEGY_LABELS:
         raise HTTPException(status_code=400, detail="Invalid strategy")
     try:
         result = backtest(
             req.symbol,
-            req.strategy_name,
+            strategy,
             req.start_date,
             req.end_date,
             req.capital,
@@ -170,6 +183,21 @@ def run_backtest(req: BacktestRequest) -> dict:
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result.to_dict()
+
+
+@app.post("/auto-trade")
+def auto_trade(req: AutoTradeRequest) -> dict:
+    try:
+        return run_daily_auto_trade(
+            CONN,
+            SETTINGS,
+            PROVIDER,
+            strategy=req.strategy,
+            as_of=req.date,
+            use_llm=req.use_llm,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/ai-decisions")

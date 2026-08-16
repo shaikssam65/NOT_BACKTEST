@@ -39,7 +39,7 @@ backtest:
   # Enter on next bar open after a buy signal (no same-bar lookahead).
   enter_on_next_open: true
 
-# Consumed by backtests now; Module 4 (Phase 3) will enforce these as a hard gate.
+# Consumed by backtests and the hard risk gate (validate_order).
 risk:
   risk_per_trade_pct: 1.0
   daily_loss_limit_pct: 3.0
@@ -47,3 +47,7 @@ risk:
   allow_averaging_down: false
   min_stop_loss_pct: 0.5
   max_stop_loss_pct: 8.0
+
+# Daily auto-trade defaults (dashboard / CLI). Always starts in PAPER_MODE via env.
+auto_trade:
+  default_strategy: combined

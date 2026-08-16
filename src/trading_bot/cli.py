@@ -5,7 +5,9 @@ import json
 import sys
 from datetime import date
 
-from trading_bot.backtest import VALID_STRATEGIES, backtest
+from trading_bot.backtest import backtest
+from trading_bot.strategies import VALID_STRATEGIES
+from trading_bot.auto_trade import run_daily_auto_trade
 from trading_bot.runtime import boot, build_provider, configure_logging
 from trading_bot.selection import run_daily_selection
 from trading_bot.universe import get_universe, refresh_universe
@@ -37,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
 
     bt = sub.add_parser("backtest", help="Backtest one symbol / strategy")
     bt.add_argument("--symbol", required=True)
-    bt.add_argument("--strategy", default="combined", choices=VALID_STRATEGIES)
+    bt.add_argument("--strategy", default="combined", choices=list(VALID_STRATEGIES))
     bt.add_argument("--start", required=True, help="YYYY-MM-DD")
     bt.add_argument("--end", required=True, help="YYYY-MM-DD")
     bt.add_argument("--capital", type=float, default=None)
@@ -46,6 +48,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Call OpenAI on each candidate bar (slow/expensive). Default is heuristic AI.",
     )
+
+    auto = sub.add_parser("auto-trade", help="Daily select + paper/live orders via risk gate")
+    auto.add_argument("--strategy", default="combined", choices=list(VALID_STRATEGIES))
+    auto.add_argument("--date", dest="as_of", default=None)
+    auto.add_argument("--no-llm", action="store_true")
 
     serve = sub.add_parser("serve", help="Start the FastAPI server")
     serve.add_argument("--host", default="127.0.0.1")
@@ -128,6 +135,19 @@ def main(argv: list[str] | None = None) -> int:
         payload["equity_points"] = len(result.equity_curve)
         payload["sample_trades"] = result.trades[:5]
         _print(payload)
+        return 0
+
+    if args.command == "auto-trade":
+        as_of = date.fromisoformat(args.as_of) if args.as_of else date.today()
+        result = run_daily_auto_trade(
+            conn,
+            settings,
+            provider,
+            strategy=args.strategy,
+            as_of=as_of,
+            use_llm=not args.no_llm,
+        )
+        _print(result)
         return 0
 
     if args.command == "serve":

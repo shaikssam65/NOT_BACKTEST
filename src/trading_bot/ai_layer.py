@@ -64,8 +64,8 @@ def heuristic_ai_signal(indicators: IndicatorSnapshot, settings: Settings) -> AI
         and indicators.sma_trend == "bullish"
         and indicators.ema_trend == "bullish"
         and rsi is not None
-        and 42 <= rsi <= 68
-        and score >= 72
+        and 45 <= rsi <= 62
+        and score >= 78
     ):
         signal = "buy"
         confidence = min(90, 50 + (score - 70))

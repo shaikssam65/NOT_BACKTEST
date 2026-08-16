@@ -13,14 +13,37 @@ This is not investment advice.
 ```text
 NSE Top 200 stocks
         ↓
-Rule-based indicators (SMA, EMA, RSI, ATR, volume)
+Stricter rule strategies (SMA / EMA / RSI pullback / trend quality)
         ↓
-AI filter (OpenAI) — buy / hold / avoid
+Optional AI filter (for *_ai and combined)
         ↓
-Only if BOTH say buy → shortlist 3–4 stocks
+Risk gate (stop mandatory, size, daily loss limit)
         ↓
-Backtest on history  OR  (later) paper / live orders
+PAPER orders by default  →  (later) live only if PAPER_MODE=false
 ```
+
+### Strategies (backtest + auto-trade)
+
+| Key | What it does |
+| --- | --- |
+| `sma_crossover` | SMA 20/50 + price/volume filters |
+| `ema_crossover` | EMA 12/26 + slow SMA bias |
+| `rsi_pullback` | Uptrend + RSI 40–55 dip buy |
+| `trend_quality` | Multi-confirm trend (strictest rules-only) |
+| `sma_ai` / `ema_ai` / `rsi_ai` | Same rules + AI must agree |
+| `combined` | **Recommended** — trend_quality + AI |
+
+### Daily auto-trade (paper)
+
+Dashboard tab **Auto-trade** or:
+
+```bash
+python -m trading_bot auto-trade --strategy combined
+```
+
+Keeps `PAPER_MODE=true` unless you deliberately set it false. Live orders also need Zerodha algo registration.
+
+---
 
 | Today | Later |
 | --- | --- |

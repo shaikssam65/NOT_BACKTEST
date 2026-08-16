@@ -5,7 +5,18 @@ from typing import Any, Literal
 
 Signal = Literal["buy", "hold", "avoid"]
 SelectionSource = Literal["ai_selected", "manual"]
-StrategyName = Literal["rule_based", "ai_filtered", "combined"]
+StrategyName = Literal[
+    "sma_crossover",
+    "ema_crossover",
+    "rsi_pullback",
+    "trend_quality",
+    "sma_ai",
+    "ema_ai",
+    "rsi_ai",
+    "combined",
+    "rule_based",
+    "ai_filtered",
+]
 
 
 @dataclass

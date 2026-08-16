@@ -102,6 +102,28 @@ CREATE TABLE IF NOT EXISTS risk_events (
     reason TEXT NOT NULL,
     details_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    opened_at TEXT NOT NULL,
+    exit_time TEXT,
+    symbol TEXT NOT NULL,
+    qty INTEGER NOT NULL,
+    entry_price REAL NOT NULL,
+    exit_price REAL,
+    stop_loss REAL NOT NULL,
+    target REAL,
+    status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+    mode TEXT NOT NULL CHECK (mode IN ('paper', 'live')),
+    strategy TEXT,
+    source TEXT,
+    pnl REAL,
+    exit_reason TEXT,
+    broker_order_id TEXT,
+    broker_exit_order_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status);
+CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions(symbol, status);
 """
 
 

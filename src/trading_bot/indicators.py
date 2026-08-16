@@ -47,57 +47,10 @@ def add_indicators(df: pd.DataFrame, cfg: IndicatorConfig | None = None) -> pd.D
 
 
 def rule_score_row(row: pd.Series) -> tuple[int, Signal]:
-    """Score a fully-computed indicator row. Returns (0-100 score, signal)."""
-    score = 50
-    sma_fast = row.get("sma_fast")
-    sma_slow = row.get("sma_slow")
-    ema_fast = row.get("ema_fast")
-    ema_slow = row.get("ema_slow")
-    close = row.get("close")
-    rsi_val = row.get("rsi")
-    volume_ratio = row.get("volume_ratio")
+    """Default snapshot score uses the stricter trend_quality strategy."""
+    from trading_bot.strategies import signal_trend_quality
 
-    if pd.isna(sma_fast) or pd.isna(sma_slow) or pd.isna(rsi_val):
-        return 0, "hold"
-
-    if sma_fast > sma_slow:
-        score += 18
-    elif sma_fast < sma_slow:
-        score -= 18
-
-    if pd.notna(ema_fast) and pd.notna(ema_slow):
-        if ema_fast > ema_slow:
-            score += 12
-        elif ema_fast < ema_slow:
-            score -= 12
-
-    if pd.notna(close):
-        if close > sma_fast:
-            score += 8
-        else:
-            score -= 8
-
-    if 45 <= rsi_val <= 65:
-        score += 10
-    elif rsi_val > 72:
-        score -= 16
-    elif rsi_val < 30:
-        score -= 10
-
-    if pd.notna(volume_ratio):
-        if volume_ratio >= 1.1:
-            score += 6
-        elif volume_ratio < 0.7:
-            score -= 4
-
-    score = int(max(0, min(100, score)))
-    if score >= 68:
-        signal: Signal = "buy"
-    elif score <= 38:
-        signal = "avoid"
-    else:
-        signal = "hold"
-    return score, signal
+    return signal_trend_quality(row)
 
 
 def snapshot_from_frame(df: pd.DataFrame) -> IndicatorSnapshot:

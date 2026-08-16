@@ -9,15 +9,20 @@ from typing import Any
 
 import pandas as pd
 
-from trading_bot.ai_layer import combine_signals, get_ai_signal, heuristic_ai_signal
+from trading_bot.ai_layer import get_ai_signal, heuristic_ai_signal
 from trading_bot.config import Settings
 from trading_bot.data_provider import HistoricalDataProvider, as_date
 from trading_bot.indicators import add_indicators, snapshot_from_frame
-from trading_bot.models import BacktestResult, StrategyName
+from trading_bot.models import BacktestResult
+from trading_bot.strategies import (
+    VALID_STRATEGIES,
+    final_signal,
+    needs_ai,
+    normalize_strategy,
+    rule_signal_for,
+)
 
 logger = logging.getLogger(__name__)
-
-VALID_STRATEGIES: tuple[StrategyName, ...] = ("rule_based", "ai_filtered", "combined")
 
 
 def _now_iso() -> str:
@@ -111,15 +116,11 @@ def _max_drawdown(curve: list[dict[str, Any]]) -> float:
 
 
 def _signal_for_strategy(
-    strategy: StrategyName,
+    strategy: str,
     rule_signal: str,
     ai_signal: str,
 ) -> str:
-    if strategy == "rule_based":
-        return rule_signal
-    if strategy == "ai_filtered":
-        return ai_signal if rule_signal == "buy" else "hold"
-    return combine_signals(rule_signal, ai_signal)  # type: ignore[arg-type]
+    return final_signal(strategy, rule_signal, ai_signal)  # type: ignore[arg-type]
 
 
 def _template_commentary(result: BacktestResult) -> str:
@@ -189,8 +190,16 @@ def backtest(
     *,
     use_llm: bool = False,
 ) -> BacktestResult:
-    if strategy_name not in VALID_STRATEGIES:
-        raise ValueError(f"Unknown strategy '{strategy_name}'. Choose from {VALID_STRATEGIES}")
+    strategy_name = normalize_strategy(strategy_name)
+    if strategy_name not in VALID_STRATEGIES and strategy_name not in {
+        "rule_based",
+        "ai_filtered",
+    }:
+        # normalize_strategy already maps aliases; accept all known labels
+        from trading_bot.strategies import STRATEGY_LABELS
+
+        if strategy_name not in STRATEGY_LABELS:
+            raise ValueError(f"Unknown strategy '{strategy_name}'. Choose from {VALID_STRATEGIES}")
     start = as_date(start_date)
     end = as_date(end_date)
     if end <= start:
@@ -300,8 +309,10 @@ def backtest(
                 close_position(bar, target, "target")
                 exited = True
             if not exited:
+                bar_row = pd.Series(bar._asdict())
+                score, rule_sig = rule_signal_for(strategy_name, bar_row)
                 snap = snapshot_from_frame(df.iloc[: i + 1])
-                if strategy_name == "rule_based":
+                if not needs_ai(strategy_name):
                     ai_signal = "buy"
                 else:
                     if use_llm:
@@ -317,21 +328,22 @@ def backtest(
                     else:
                         ai = heuristic_ai_signal(snap, settings)
                     ai_signal = ai.signal
-                action = _signal_for_strategy(strategy_name, snap.rule_signal, ai_signal)
+                action = _signal_for_strategy(strategy_name, rule_sig, ai_signal)
                 if action == "avoid":
                     close_position(bar, c, "signal_exit")
 
         if in_window and position is None and pending_entry is None:
+            bar_row = pd.Series(bar._asdict())
+            score, rule_signal = rule_signal_for(strategy_name, bar_row)
             snap = snapshot_from_frame(df.iloc[: i + 1])
-            rule_signal = snap.rule_signal
-            if strategy_name == "rule_based":
+            stop_pct = bt.default_stop_loss_pct
+            target_pct = bt.default_target_pct
+            if snap.atr and snap.last_close:
+                atr_pct = (snap.atr / snap.last_close) * 100 * bt.atr_stop_mult
+                stop_pct = max(stop_pct, min(settings.risk.max_stop_loss_pct, atr_pct))
+                target_pct = max(target_pct, stop_pct * 2.0)
+            if not needs_ai(strategy_name):
                 ai_signal = "buy"
-                stop_pct = bt.default_stop_loss_pct
-                target_pct = bt.default_target_pct
-                if snap.atr and snap.last_close:
-                    atr_pct = (snap.atr / snap.last_close) * 100 * bt.atr_stop_mult
-                    stop_pct = max(stop_pct, min(settings.risk.max_stop_loss_pct, atr_pct))
-                    target_pct = max(target_pct, stop_pct * 2.0)
             else:
                 if use_llm:
                     ai = get_ai_signal(
