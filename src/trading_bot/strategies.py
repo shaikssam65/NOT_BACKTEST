@@ -22,12 +22,14 @@ StrategyName = Literal[
     "ema_ai",
     "rsi_ai",
     "combined",
+    "ensemble",
     # Legacy aliases kept for older dashboard/cache keys
     "rule_based",
     "ai_filtered",
 ]
 
 VALID_STRATEGIES: tuple[StrategyName, ...] = (
+    "ensemble",
     "sma_crossover",
     "ema_crossover",
     "rsi_pullback",
@@ -39,6 +41,7 @@ VALID_STRATEGIES: tuple[StrategyName, ...] = (
 )
 
 STRATEGY_LABELS: dict[str, str] = {
+    "ensemble": "Ensemble vote (4 rules + 2 AI agents) — recommended",
     "sma_crossover": "SMA 20/50 crossover (strict)",
     "ema_crossover": "EMA 12/26 crossover (strict)",
     "rsi_pullback": "Uptrend + RSI pullback buy",
@@ -46,17 +49,19 @@ STRATEGY_LABELS: dict[str, str] = {
     "sma_ai": "SMA crossover + AI filter",
     "ema_ai": "EMA crossover + AI filter",
     "rsi_ai": "RSI pullback + AI filter",
-    "combined": "Trend quality + AI (recommended)",
+    "combined": "Trend quality + AI",
     "rule_based": "Legacy → trend_quality",
     "ai_filtered": "Legacy → sma_ai",
 }
 
 
 def normalize_strategy(name: str) -> StrategyName:
-    key = (name or "combined").strip().lower()
+    key = (name or "ensemble").strip().lower()
     aliases = {
         "rule_based": "trend_quality",
         "ai_filtered": "sma_ai",
+        "voting": "ensemble",
+        "multi_agent": "ensemble",
     }
     key = aliases.get(key, key)
     if key not in VALID_STRATEGIES and key not in aliases:
@@ -207,6 +212,7 @@ def rule_signal_for(strategy: str, row: pd.Series) -> tuple[int, Signal]:
         "rsi_ai": "rsi_pullback",
         "trend_quality": "trend_quality",
         "combined": "trend_quality",
+        "ensemble": "trend_quality",
         "rule_based": "trend_quality",
         "ai_filtered": "sma_crossover",
     }.get(name, "trend_quality")
@@ -215,7 +221,7 @@ def rule_signal_for(strategy: str, row: pd.Series) -> tuple[int, Signal]:
 
 def needs_ai(strategy: str) -> bool:
     name = normalize_strategy(strategy)
-    return name in {"sma_ai", "ema_ai", "rsi_ai", "combined", "ai_filtered"}
+    return name in {"sma_ai", "ema_ai", "rsi_ai", "combined", "ai_filtered", "ensemble"}
 
 
 def final_signal(strategy: str, rule: Signal, ai: Signal) -> Signal:
@@ -224,5 +230,8 @@ def final_signal(strategy: str, rule: Signal, ai: Signal) -> Signal:
         return rule
     if name in {"sma_ai", "ema_ai", "rsi_ai", "ai_filtered"}:
         return ai if rule == "buy" else "hold"
+    if name == "ensemble":
+        # Handled by trading_bot.ensemble.vote_symbol — keep compatible fallback
+        return combine_signals(rule, ai)
     # combined
     return combine_signals(rule, ai)

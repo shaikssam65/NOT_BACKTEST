@@ -70,9 +70,10 @@ class BacktestRequest(BaseModel):
 
 
 class AutoTradeRequest(BaseModel):
-    strategy: str = "combined"
+    strategy: str = "ensemble"
     date: date | None = None
     use_llm: bool = True
+    trade_capital: float | None = None
 
 
 class SelectRequest(BaseModel):
@@ -195,6 +196,7 @@ def auto_trade(req: AutoTradeRequest) -> dict:
             strategy=req.strategy,
             as_of=req.date,
             use_llm=req.use_llm,
+            trade_capital=req.trade_capital,
         )
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

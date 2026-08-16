@@ -13,43 +13,85 @@ This is not investment advice.
 ```text
 NSE Top 200 stocks
         ↓
-Stricter rule strategies (SMA / EMA / RSI pullback / trend quality)
+4 rule strategies vote (SMA / EMA / RSI / trend quality)
         ↓
-Optional AI filter (for *_ai and combined)
+2 AI agents (Agent-Trend + Agent-Risk) must both agree
         ↓
-Risk gate (stop mandatory, size, daily loss limit)
+Risk gate (stop mandatory, size from your capital, daily loss limit)
         ↓
-PAPER orders by default  →  (later) live only if PAPER_MODE=false
+PAPER orders by default  →  live only if PAPER_MODE=false
 ```
+
+### How decisions are made (flowchart)
+
+Buy and sell are **separate**. A buy only stores stop + target; a sell happens later when price hits those levels.
+
+```mermaid
+flowchart TD
+  START([Auto-trade run]) --> EXITS[Check open positions vs LTP]
+  EXITS --> HIT{LTP vs stop/target?}
+  HIT -->|LTP ≤ stop| SELL_SL[SELL — stop-loss]
+  HIT -->|LTP ≥ target| SELL_TG[SELL — target]
+  HIT -->|in between| HOLD[Keep holding — no sell]
+  SELL_SL --> SCAN
+  SELL_TG --> SCAN
+  HOLD --> SCAN
+  SCAN[Scan NSE Top 200 + indicators] --> RULES[4 rule voters: SMA / EMA / RSI / trend]
+  RULES --> TALLY{Enough rule BUYs?}
+  TALLY -->|No| SKIP1[Skip stock — hold/avoid]
+  TALLY -->|Yes| AGENTS[Agent-Trend + Agent-Risk]
+  AGENTS --> BOTH{Both agents BUY?}
+  BOTH -->|No| SKIP2[Skip stock]
+  BOTH -->|Yes| CAND[Add to buy candidates]
+  CAND --> PICK[Selection constraints: max 3–4 picks]
+  PICK --> RISK[Risk gate: stop required, size from capital, max positions]
+  RISK --> PASS{Passed?}
+  PASS -->|No| REJECT[Order rejected — logged]
+  PASS -->|Yes| MODE{PAPER_MODE?}
+  MODE -->|true| PAPER[Paper BUY fill — mock money in DB]
+  MODE -->|false| LIVE[Live BUY on Zerodha]
+  PAPER --> PLAN[Store stop + target on position]
+  LIVE --> PLAN
+  PLAN --> WAIT([Wait for next run / Manage exits])
+  WAIT --> EXITS
+```
+
+**In one line:** rules vote → both AI agents agree → risk sizes the BUY → later LTP hits stop or target → SELL.
 
 ### Strategies (backtest + auto-trade)
 
 | Key | What it does |
 | --- | --- |
+| `ensemble` | **Recommended for auto-trade** — 4 rules vote + 2 AI agents |
 | `sma_crossover` | SMA 20/50 + price/volume filters |
 | `ema_crossover` | EMA 12/26 + slow SMA bias |
 | `rsi_pullback` | Uptrend + RSI 40–55 dip buy |
 | `trend_quality` | Multi-confirm trend (strictest rules-only) |
 | `sma_ai` / `ema_ai` / `rsi_ai` | Same rules + AI must agree |
-| `combined` | **Recommended** — trend_quality + AI |
+| `combined` | trend_quality + AI (good for backtests) |
 
 ### Daily auto-trade (paper)
 
-Dashboard tab **Auto-trade** or:
+**Daily-trade aware** (short-horizon setups), not long-term investing:
+- Entries sized with day-style stop / target (defaults ~1.5% / ~3%; AI can adjust within bounds)
+- AI agents think in short-horizon terms
+- Exits **only** on stop or target — **never** force-sold just because a day passed
+- Run each market day for new entries (`scripts/run_daily_auto_trade.ps1` or dashboard)
 
 ```bash
-python -m trading_bot auto-trade --strategy combined
+python -m trading_bot auto-trade --strategy ensemble --capital 100000
 ```
 
+Nothing guarantees daily profits — paper first, then live only with proper algo registration.  
 Keeps `PAPER_MODE=true` unless you deliberately set it false. Live orders also need Zerodha algo registration.
 
 ---
 
-| Today | Later |
+| Mode | What happens |
 | --- | --- |
-| Backtest any stock | Risk gate on every order |
-| Daily AI stock picks | Paper trading (fake fills) |
-| Live quotes via Kite | Live orders only after you turn paper off + SEBI/Zerodha algo registration |
+| **Backtest** | Fake money + historical prices (Kite if connected, else Yahoo) → trade list + P&L |
+| **Auto-trade + PAPER_MODE=true** | Real prices for decisions; **paper** fills (no real money) |
+| **Auto-trade + PAPER_MODE=false** | Real Zerodha orders with real capital |
 
 ---
 

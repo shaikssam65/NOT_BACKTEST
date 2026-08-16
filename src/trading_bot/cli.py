@@ -50,8 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     auto = sub.add_parser("auto-trade", help="Daily select + paper/live orders via risk gate")
-    auto.add_argument("--strategy", default="combined", choices=list(VALID_STRATEGIES))
+    auto.add_argument("--strategy", default="ensemble", choices=list(VALID_STRATEGIES))
     auto.add_argument("--date", dest="as_of", default=None)
+    auto.add_argument("--capital", type=float, default=None, help="₹ capital for position sizing")
     auto.add_argument("--no-llm", action="store_true")
 
     serve = sub.add_parser("serve", help="Start the FastAPI server")
@@ -146,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             strategy=args.strategy,
             as_of=as_of,
             use_llm=not args.no_llm,
+            trade_capital=args.capital,
         )
         _print(result)
         return 0

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from trading_bot.config import Settings
@@ -73,6 +73,7 @@ def place_buy(
     target: float | None,
     strategy: str,
     source: str = "ai_selected",
+    available_capital: float | None = None,
 ) -> dict[str, Any]:
     mode = _mode(settings)
     intent = OrderIntent(
@@ -83,7 +84,12 @@ def place_buy(
         target_price=target,
         source=source,
     )
-    decision = validate_order(intent, settings, conn)
+    decision = validate_order(
+        intent,
+        settings,
+        conn,
+        available_capital=available_capital,
+    )
     if not decision.passed:
         _log_order(
             conn,
@@ -272,8 +278,15 @@ def list_open_positions(conn) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-def manage_open_positions(conn, settings: Settings) -> list[dict[str, Any]]:
-    """Check LTP vs stop/target and exit paper (or live) positions."""
+def manage_open_positions(
+    conn,
+    settings: Settings,
+    *,
+    as_of: date | None = None,
+    fallback_prices: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
+    """Exit only on stop-loss or target — never force-sell just because a day passed."""
+    as_of = as_of or date.today()
     opens = list_open_positions(conn)
     if not opens:
         return []
@@ -283,17 +296,19 @@ def manage_open_positions(conn, settings: Settings) -> list[dict[str, Any]]:
     except Exception:
         logger.exception("LTP fetch failed during position manage")
         prices = {}
+    if fallback_prices:
+        for sym, px in fallback_prices.items():
+            prices.setdefault(sym.upper(), float(px))
 
     actions: list[dict[str, Any]] = []
     for pos in opens:
         symbol = pos["symbol"]
         ltp = prices.get(symbol)
-        if ltp is None:
-            # Paper fallback: keep position if no quote
-            actions.append({"symbol": symbol, "action": "skip", "reason": "no_ltp"})
-            continue
         stop = float(pos["stop_loss"])
         target = pos["target"]
+        if ltp is None:
+            actions.append({"symbol": symbol, "action": "skip", "reason": "no_ltp"})
+            continue
         if ltp <= stop:
             result = place_sell(conn, settings, position_id=pos["id"], exit_price=ltp, reason="stop_loss")
             actions.append({"symbol": symbol, "action": "sell_stop", **result, "ltp": ltp})
@@ -301,5 +316,12 @@ def manage_open_positions(conn, settings: Settings) -> list[dict[str, Any]]:
             result = place_sell(conn, settings, position_id=pos["id"], exit_price=ltp, reason="target")
             actions.append({"symbol": symbol, "action": "sell_target", **result, "ltp": ltp})
         else:
-            actions.append({"symbol": symbol, "action": "hold", "ltp": ltp})
+            actions.append(
+                {
+                    "symbol": symbol,
+                    "action": "hold",
+                    "ltp": ltp,
+                    "note": "Waiting for stop or target — no time-based force exit.",
+                }
+            )
     return actions

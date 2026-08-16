@@ -14,6 +14,7 @@ StrategyName = Literal[
     "ema_ai",
     "rsi_ai",
     "combined",
+    "ensemble",
     "rule_based",
     "ai_filtered",
 ]

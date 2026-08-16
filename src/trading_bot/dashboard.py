@@ -217,7 +217,7 @@ def _backtest_tab(settings, conn, provider) -> None:
     default_end = date.today()
     default_start = default_end - timedelta(days=365)
     c1, c2, c3, c4 = st.columns(4)
-    strategy_options = list(VALID_STRATEGIES)
+    strategy_options = [s for s in VALID_STRATEGIES if s != "ensemble"]
     default_ix = strategy_options.index("combined") if "combined" in strategy_options else 0
     symbol = c1.selectbox("Stock", symbols, index=symbols.index("RELIANCE") if "RELIANCE" in symbols else 0)
     strategy = c2.selectbox(
@@ -225,6 +225,7 @@ def _backtest_tab(settings, conn, provider) -> None:
         strategy_options,
         index=default_ix,
         format_func=lambda s: STRATEGY_LABELS.get(s, s),
+        help="Ensemble voting is for Auto-trade only (too heavy for bar-by-bar backtest).",
     )
     start = c3.date_input("Start", value=default_start)
     end = c4.date_input("End", value=default_end)
@@ -337,66 +338,165 @@ def _backtest_tab(settings, conn, provider) -> None:
 
 
 def _auto_trade_tab(settings, conn, provider) -> None:
-    st.subheader("Daily auto-trade (paper by default)")
+    st.subheader("Daily auto-trade")
     st.markdown(
         """
-Runs: **manage exits** (stop/target) → **select 3–4 stocks** with your strategy → **place orders**  
-through the risk gate. With `PAPER_MODE=true` (default) fills are **simulated** — no real money.
+**Daily-trade aware (not long-term investing):**  
+1. Check open positions — exit **only** on stop-loss or target (never force-sell just because a day passed)  
+2. Scan with ensemble votes sized for **short-horizon** moves  
+3. Place orders with day-style stops/targets (~1.5% / ~3%)  
+
+Run each market day for new entries. An open trade stays until stop or target hits.
 """
     )
     if settings.paper_mode:
-        st.success("PAPER_MODE is ON — orders are paper fills only.")
+        st.success("PAPER_MODE is ON — orders are paper fills only (safe to try).")
     else:
         st.error("PAPER_MODE is OFF — this can send **live** Zerodha orders. Only for registered algo use.")
 
+    default_idx = list(VALID_STRATEGIES).index("ensemble") if "ensemble" in VALID_STRATEGIES else 0
     strategy = st.selectbox(
-        "Strategy for today",
+        "Decision mode",
         list(VALID_STRATEGIES),
-        index=list(VALID_STRATEGIES).index("combined"),
+        index=default_idx,
         format_func=lambda s: STRATEGY_LABELS.get(s, s),
         key="auto_strategy",
+        help="Ensemble = all rule strategies vote + 2 AI agents. Other modes use a single strategy.",
     )
-    use_llm = st.checkbox("Use OpenAI filter (for *_ai / combined)", value=settings.openai_ready, key="auto_llm")
+    trade_capital = st.number_input(
+        "Capital to use for trading (₹)",
+        min_value=10_000.0,
+        max_value=50_000_000.0,
+        value=float(settings.capital),
+        step=10_000.0,
+        key="auto_capital",
+        help="Used for position sizing and risk checks. Does not withdraw money by itself.",
+    )
+    use_llm = st.checkbox(
+        "Use OpenAI for Agent-Trend / Agent-Risk (falls back to heuristics if off)",
+        value=settings.openai_ready,
+        key="auto_llm",
+    )
     c1, c2 = st.columns(2)
     if c1.button("Run daily auto-trade now", type="primary"):
-        with st.spinner("Selecting + placing paper/live orders…"):
-            try:
-                result = run_daily_auto_trade(
-                    conn,
-                    settings,
-                    provider,
-                    strategy=strategy,
-                    use_llm=use_llm,
-                    manage_exits=True,
-                )
-                st.session_state["auto_trade"] = result
-            except Exception as exc:
-                st.error(str(exc))
-                return
+        status = st.status("Running auto-trade…", expanded=True)
+        try:
+
+            def _progress(msg: str) -> None:
+                status.write(msg)
+
+            result = run_daily_auto_trade(
+                conn,
+                settings,
+                provider,
+                strategy=strategy,
+                use_llm=use_llm,
+                manage_exits=True,
+                trade_capital=float(trade_capital),
+                progress=_progress,
+            )
+            st.session_state["auto_trade"] = result
+            status.update(label="Auto-trade finished", state="complete")
+        except Exception as exc:
+            status.update(label="Auto-trade failed", state="error")
+            st.error(str(exc))
+            return
     if c2.button("Manage exits only (check SL/target vs LTP)"):
         try:
             actions = manage_open_positions(conn, settings)
             st.session_state["exit_actions"] = actions
+            st.info(f"Checked {len(actions)} open position(s).")
         except Exception as exc:
             st.error(str(exc))
 
     result = st.session_state.get("auto_trade")
     if result:
-        st.write(
-            f"**Mode:** {result['mode']} · **Strategy:** {result['strategy']} · "
-            f"**Picks:** {', '.join(result['picks']) or 'none'}"
+        st.markdown("---")
+        st.markdown(
+            f"**Mode:** `{result['mode']}` · **Style:** `{result.get('style', 'daily')}` · "
+            f"**Strategy:** `{result['strategy']}` · "
+            f"**Capital:** ₹{result.get('trade_capital', 0):,.0f} · "
+            f"**Scanned:** {result.get('scanned', 0)} · "
+            f"**Picks:** {', '.join(result.get('picks') or []) or 'none'}"
         )
         st.caption(result.get("note") or "")
+
+        with st.expander("Activity log (what happened)", expanded=True):
+            for line in result.get("activity") or []:
+                st.text(line)
+
+        detected = result.get("detected") or []
+        st.markdown("### Stocks detected (buy candidates)")
+        if detected:
+            st.dataframe(pd.DataFrame(detected), hide_index=True, use_container_width=True)
+        else:
+            st.caption("No buy candidates today — rules/agents did not agree. That is normal.")
+
+        if result.get("votes"):
+            with st.expander("Ensemble votes (detail)", expanded=False):
+                vote_rows = []
+                for v in result["votes"]:
+                    rv = v.get("rule_votes") or {}
+                    vote_rows.append(
+                        {
+                            "symbol": v.get("symbol"),
+                            "final": v.get("final_signal"),
+                            "score": v.get("final_score"),
+                            "rule_buys": v.get("rule_buy_count"),
+                            "sma": rv.get("sma_crossover"),
+                            "ema": rv.get("ema_crossover"),
+                            "rsi": rv.get("rsi_pullback"),
+                            "trend": rv.get("trend_quality"),
+                            "agent_trend": (v.get("agent_trend") or {}).get("signal"),
+                            "agent_risk": (v.get("agent_risk") or {}).get("signal"),
+                            "stop_%": v.get("stop_loss_pct"),
+                            "target_%": v.get("target_pct"),
+                            "reasoning": v.get("reasoning"),
+                        }
+                    )
+                st.dataframe(pd.DataFrame(vote_rows), hide_index=True, use_container_width=True)
+
+        st.markdown("### Orders placed")
         if result.get("orders"):
             st.dataframe(pd.DataFrame(result["orders"]), hide_index=True, use_container_width=True)
+        else:
+            st.caption("No orders placed.")
+
+        plans = result.get("entry_plans") or []
+        st.markdown("### Entry & exit plan")
+        if plans:
+            st.dataframe(pd.DataFrame(plans), hide_index=True, use_container_width=True)
+            for p in plans:
+                st.info(
+                    f"**{p['symbol']}** — buy {p.get('qty')} @ ₹{p.get('entry')} · "
+                    f"exit stop ₹{p.get('stop_loss')} / target ₹{p.get('target')} · "
+                    f"{p.get('exit_when')}"
+                )
+        else:
+            st.caption("No filled entries this run.")
+
         if result.get("exits"):
-            st.markdown("**Exit checks**")
+            st.markdown("### Exit checks this run")
             st.dataframe(pd.DataFrame(result["exits"]), hide_index=True, use_container_width=True)
 
     opens = list_open_positions(conn)
-    st.markdown("### Open positions")
+    st.markdown("### Open positions (live book)")
     if opens:
-        st.dataframe(pd.DataFrame(opens), hide_index=True, use_container_width=True)
+        enriched = []
+        for p in opens:
+            entry = float(p.get("entry_price") or 0)
+            stop = float(p.get("stop_loss") or 0)
+            target = p.get("target")
+            enriched.append(
+                {
+                    **dict(p),
+                    "exit_plan": (
+                        f"SELL ≤ {stop:.2f} (SL)"
+                        + (f" or ≥ {float(target):.2f} (target)" if target is not None else "")
+                    ),
+                }
+            )
+        st.dataframe(pd.DataFrame(enriched), hide_index=True, use_container_width=True)
     else:
         st.caption("No open positions.")
 
@@ -505,7 +605,7 @@ def main() -> None:
     else:
         st.warning(
             "**Kite is not connected yet.** Open **Setup & Kite** → **Connect Kite**, "
-            "then run Backtest. This app does not auto-trade."
+            "then use **Backtest** / **Auto-trade**. Paper auto-trade works without live orders."
         )
         if settings.kite_api_key and settings.kite_api_secret:
             st.link_button(

@@ -33,9 +33,10 @@ indicators:
 backtest:
   slippage_pct: 0.05
   commission_pct: 0.03
-  default_stop_loss_pct: 2.0
-  default_target_pct: 4.0
-  atr_stop_mult: 2.0
+  # Day-trade style defaults (not multi-week holds).
+  default_stop_loss_pct: 1.5
+  default_target_pct: 3.0
+  atr_stop_mult: 1.5
   # Enter on next bar open after a buy signal (no same-bar lookahead).
   enter_on_next_open: true
 
@@ -48,6 +49,9 @@ risk:
   min_stop_loss_pct: 0.5
   max_stop_loss_pct: 8.0
 
-# Daily auto-trade defaults (dashboard / CLI). Always starts in PAPER_MODE via env.
+# Daily auto-trade — short-horizon setups; exits only on stop/target (never force-flat).
 auto_trade:
-  default_strategy: combined
+  default_strategy: ensemble
+  intended_hold_days: 1
+  daily_stop_loss_pct: 1.5
+  daily_target_pct: 3.0

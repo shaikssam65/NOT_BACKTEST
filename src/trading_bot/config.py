@@ -70,6 +70,18 @@ class RiskConfig:
     max_stop_loss_pct: float = 8.0
 
 
+@dataclass(frozen=True)
+class AutoTradeConfig:
+    """Daily-trading style: short-horizon setups — exits via stop/target, not forced flatten."""
+
+    default_strategy: str = "ensemble"
+    # Soft horizon for messaging / AI prompts only. Does NOT force-sell losers.
+    intended_hold_days: int = 1
+    # Day-trade style defaults when AI does not override.
+    daily_stop_loss_pct: float = 1.5
+    daily_target_pct: float = 3.0
+
+
 def _nonempty(value: str | None) -> str | None:
     if value is None:
         return None
@@ -107,6 +119,7 @@ class Settings:
     indicators: IndicatorConfig = field(default_factory=IndicatorConfig)
     backtest: BacktestConfig = field(default_factory=BacktestConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
+    auto_trade: AutoTradeConfig = field(default_factory=AutoTradeConfig)
 
     @property
     def kite_ready(self) -> bool:
@@ -175,5 +188,9 @@ def load_settings(config_path: Path | None = None) -> Settings:
         risk=RiskConfig(**{
             k: v for k, v in _section(raw, "risk").items()
             if k in RiskConfig.__dataclass_fields__
+        }),
+        auto_trade=AutoTradeConfig(**{
+            k: v for k, v in _section(raw, "auto_trade").items()
+            if k in AutoTradeConfig.__dataclass_fields__
         }),
     )
