@@ -4,8 +4,25 @@ from __future__ import annotations
 
 from datetime import date
 
-from trading_bot.simple_bot import price_in_selected_bands, research_and_buy
+from trading_bot.simple_bot import (
+    manual_sell_holdings,
+    price_in_selected_bands,
+    research_and_buy,
+)
 from tests.conftest import FakeProvider, trending_ohlcv
+
+
+def test_manual_sell_empty_selection(settings):
+    result = manual_sell_holdings(settings, [])
+    assert result["ok"] is False
+    assert result["sold"] == []
+
+
+def test_manual_sell_missing_holding(settings):
+    result = manual_sell_holdings(settings, [{"symbol": "NOSUCH", "qty": 1}])
+    assert result["ok"] is True
+    assert result["sold"][0]["ok"] is False
+    assert result["sold"][0]["reason"] == "not_in_kite_holdings"
 
 
 def test_price_bands():

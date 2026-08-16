@@ -24,6 +24,8 @@ from trading_bot.simple_bot import (
     PRICE_BANDS,
     PROFIT_SELL_PCT,
     auto_sell_profits,
+    fetch_kite_holdings,
+    manual_sell_holdings,
     research_and_buy,
 )
 
@@ -138,9 +140,9 @@ def main() -> None:
     st.title("NSE Simple Bot")
     st.markdown(
         """
-1. **Sell profits** — Kite holdings ≥**30%** → sell; else leave  
-2. **Research** — pick price ranges, then **Suggest only** (review) or **Place buy orders**  
-   Scoring: rules + Finnhub news + Kite live quotes (no ChatGPT)
+1. **Auto-sell** ≥30% profits · **Manual sell** any holding you pick  
+2. **Research** — price ranges → **Suggest only** or **Place buy orders**  
+   (rules + Finnhub + Kite; no ChatGPT)
 """
     )
 
@@ -181,6 +183,75 @@ def main() -> None:
             st.dataframe(pd.DataFrame(sell_report["kept"]), hide_index=True, use_container_width=True)
         if sell_report.get("holdings") and not sell_report.get("sold") and not sell_report.get("kept"):
             st.dataframe(pd.DataFrame(sell_report["holdings"]), hide_index=True, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("1b · Manual sell (any holding)")
+    st.caption(
+        "Load Kite holdings, pick what to sell and how many shares. "
+        "Works at any PnL — not only ≥30%."
+    )
+    if st.button("Load / refresh holdings", use_container_width=True):
+        if not kite.get("ok"):
+            st.error("Connect Kite first (sidebar).")
+        else:
+            try:
+                st.session_state["manual_holdings"] = fetch_kite_holdings(settings)
+            except Exception as exc:
+                st.error(str(exc))
+
+    holdings = st.session_state.get("manual_holdings") or []
+    if holdings:
+        st.dataframe(pd.DataFrame(holdings), hide_index=True, use_container_width=True)
+        labels = [
+            f"{h['symbol']} · qty {h['qty']} · PnL {h['pnl_pct']}% · LTP {h['ltp']}"
+            for h in holdings
+        ]
+        by_label = {labels[i]: holdings[i] for i in range(len(holdings))}
+        picked = st.multiselect("Select stocks to sell", options=labels)
+        selections: list[dict] = []
+        for lab in picked:
+            h = by_label[lab]
+            max_q = int(h["qty"])
+            qty = st.number_input(
+                f"Qty · {h['symbol']} (max {max_q})",
+                min_value=1,
+                max_value=max_q,
+                value=max_q,
+                step=1,
+                key=f"manual_sell_qty_{h['symbol']}",
+            )
+            selections.append({"symbol": h["symbol"], "qty": int(qty)})
+
+        if st.button("Sell selected", type="primary", use_container_width=True):
+            if not selections:
+                st.error("Select at least one stock.")
+            else:
+                status = st.status("Placing sells…", expanded=True)
+                try:
+
+                    def _p(msg: str) -> None:
+                        status.write(msg)
+
+                    report = manual_sell_holdings(settings, selections, progress=_p)
+                    st.session_state["manual_sell_report"] = report
+                    # Refresh holdings after sell
+                    st.session_state["manual_holdings"] = fetch_kite_holdings(settings)
+                    status.update(label="Done", state="complete")
+                except Exception as exc:
+                    status.update(label="Failed", state="error")
+                    st.error(str(exc))
+    else:
+        st.caption("Click **Load / refresh holdings** to choose what to sell.")
+
+    manual_sell_report = st.session_state.get("manual_sell_report")
+    if manual_sell_report:
+        st.info(manual_sell_report.get("note") or "")
+        if manual_sell_report.get("sold"):
+            st.dataframe(
+                pd.DataFrame(manual_sell_report["sold"]),
+                hide_index=True,
+                use_container_width=True,
+            )
 
     st.markdown("---")
     st.subheader("2 · Research 2–3 stocks")

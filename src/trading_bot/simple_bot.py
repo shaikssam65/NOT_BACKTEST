@@ -95,6 +95,43 @@ def fetch_kite_holdings(settings: Settings) -> list[dict[str, Any]]:
     return out
 
 
+def _place_holding_sell(
+    settings: Settings,
+    *,
+    symbol: str,
+    qty: int,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Paper or live CNC market sell for a Kite holding."""
+    base = dict(meta or {})
+    base["symbol"] = symbol.upper()
+    base["sell_qty"] = int(qty)
+    if qty <= 0:
+        return {**base, "action": "sell_failed", "ok": False, "reason": "qty_zero"}
+    if settings.paper_mode:
+        return {
+            **base,
+            "action": "paper_sell",
+            "ok": True,
+            "note": "PAPER — no real order. Turn PAPER_MODE=false for live sell.",
+        }
+    try:
+        kite = kite_client(settings)
+        order_id = kite.place_order(
+            variety=kite.VARIETY_REGULAR,
+            exchange=kite.EXCHANGE_NSE,
+            tradingsymbol=symbol.upper(),
+            transaction_type=kite.TRANSACTION_TYPE_SELL,
+            quantity=int(qty),
+            order_type=kite.ORDER_TYPE_MARKET,
+            product=kite.PRODUCT_CNC,
+        )
+        return {**base, "action": "live_sell", "ok": True, "broker_order_id": str(order_id)}
+    except Exception as exc:
+        logger.exception("Sell failed for %s", symbol)
+        return {**base, "action": "sell_failed", "ok": False, "reason": str(exc)}
+
+
 def auto_sell_profits(
     settings: Settings,
     *,
@@ -128,31 +165,7 @@ def auto_sell_profits(
             continue
 
         log(f"  SELL {h['symbol']}: +{h['pnl_pct']}% (≥{min_profit_pct}%)")
-        if settings.paper_mode:
-            sold.append(
-                {
-                    **h,
-                    "action": "paper_sell",
-                    "ok": True,
-                    "note": "PAPER — no real order. Turn PAPER_MODE=false for live sell.",
-                }
-            )
-            continue
-        try:
-            kite = kite_client(settings)
-            order_id = kite.place_order(
-                variety=kite.VARIETY_REGULAR,
-                exchange=kite.EXCHANGE_NSE,
-                tradingsymbol=h["symbol"],
-                transaction_type=kite.TRANSACTION_TYPE_SELL,
-                quantity=int(h["qty"]),
-                order_type=kite.ORDER_TYPE_MARKET,
-                product=kite.PRODUCT_CNC,
-            )
-            sold.append({**h, "action": "live_sell", "ok": True, "broker_order_id": str(order_id)})
-        except Exception as exc:
-            logger.exception("Sell failed for %s", h["symbol"])
-            sold.append({**h, "action": "sell_failed", "ok": False, "reason": str(exc)})
+        sold.append(_place_holding_sell(settings, symbol=h["symbol"], qty=int(h["qty"]), meta=h))
 
     return {
         "ok": True,
@@ -163,6 +176,72 @@ def auto_sell_profits(
         "kept": kept,
         "note": (
             f"Checked {len(holdings)} holdings · sold {len(sold)} · kept {len(kept)}."
+            + (" PAPER mode — sells are simulated." if settings.paper_mode else "")
+        ),
+    }
+
+
+def manual_sell_holdings(
+    settings: Settings,
+    selections: list[dict[str, Any]],
+    *,
+    progress: ProgressCb | None = None,
+) -> dict[str, Any]:
+    """
+    Sell user-picked Kite holdings (any profit level).
+    selections: [{"symbol": "XYZ", "qty": 10}, ...] — qty optional → full holding qty.
+    """
+    log = progress or _noop
+    mode = "paper" if settings.paper_mode else "live"
+    if not selections:
+        return {
+            "ok": False,
+            "mode": mode,
+            "sold": [],
+            "note": "No stocks selected to sell.",
+        }
+
+    holdings = fetch_kite_holdings(settings)
+    by_sym = {h["symbol"]: h for h in holdings}
+    sold: list[dict[str, Any]] = []
+    log(f"Manual sell · {len(selections)} selection(s) · mode={mode}")
+
+    for sel in selections:
+        sym = str(sel.get("symbol") or "").upper().strip()
+        if not sym:
+            continue
+        h = by_sym.get(sym)
+        if not h:
+            sold.append(
+                {
+                    "symbol": sym,
+                    "action": "sell_failed",
+                    "ok": False,
+                    "reason": "not_in_kite_holdings",
+                }
+            )
+            log(f"  SKIP {sym}: not in holdings")
+            continue
+        max_qty = int(h["qty"])
+        req = sel.get("qty")
+        qty = max_qty if req is None else int(req)
+        if qty <= 0:
+            sold.append({**h, "action": "sell_failed", "ok": False, "reason": "qty_zero"})
+            continue
+        if qty > max_qty:
+            log(f"  clamp {sym} qty {qty} → {max_qty}")
+            qty = max_qty
+        log(f"  SELL {sym} × {qty} (pnl {h['pnl_pct']}%)")
+        sold.append(_place_holding_sell(settings, symbol=sym, qty=qty, meta=h))
+
+    ok_n = sum(1 for s in sold if s.get("ok"))
+    return {
+        "ok": True,
+        "mode": mode,
+        "holdings": holdings,
+        "sold": sold,
+        "note": (
+            f"Manual sell · requested {len(selections)} · ok {ok_n}."
             + (" PAPER mode — sells are simulated." if settings.paper_mode else "")
         ),
     }
