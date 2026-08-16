@@ -158,9 +158,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "take-profits":
-        from trading_bot.small_swing import auto_take_profits
+        from trading_bot.simple_bot import auto_sell_profits
 
-        _print(auto_take_profits(conn, settings))
+        _print(auto_sell_profits(settings))
         return 0
 
     if args.command == "serve":

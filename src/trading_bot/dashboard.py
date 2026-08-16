@@ -1,58 +1,39 @@
+"""Simple Streamlit UI — two actions: sell ≥30% profits, research & buy 2–3 stocks."""
+
 from __future__ import annotations
 
 import os
-from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from trading_bot.backtest import backtest
-from trading_bot.strategies import PRIMARY_STRATEGIES, STRATEGY_LABELS
-from trading_bot.auto_trade import run_daily_auto_trade
-from trading_bot.execution import list_open_positions, manage_open_positions
-from trading_bot.small_swing import auto_take_profits
-
 from trading_bot.config import ROOT, load_settings
-from trading_bot.data_provider import as_date
-from trading_bot.export_backtest import (
-    equity_frame,
-    summary_frame,
-    to_csv_bytes,
-    trades_frame,
-    try_save_csv_files,
-)
+from trading_bot.execution import list_open_positions
 from trading_bot.kite_auth import (
-    DEFAULT_REDIRECT_URL,
     clear_session,
     exchange_request_token,
-    fetch_ltp,
     kite_redirect_url,
     login_url,
     profile_status,
     upsert_env,
 )
 from trading_bot.runtime import boot, build_provider
-from trading_bot.selection import list_selections, run_daily_selection
-from trading_bot.universe import get_universe
+from trading_bot.simple_bot import PROFIT_SELL_PCT, auto_sell_profits, research_and_buy
 
-# set_page_config lives in app.py (must be first Streamlit call on Cloud).
-# Local `python -m trading_bot dashboard` still needs it here when this file is the entry.
 try:
-    st.set_page_config(page_title="NSE Equity Bot", layout="wide")
+    st.set_page_config(page_title="NSE Simple Bot", layout="wide")
 except st.errors.StreamlitAPIException:
     pass
 
 
 def _restore_kite_token_from_session() -> None:
-    """Streamlit Cloud cannot rely on .env; keep the daily token in session_state."""
     token = st.session_state.get("kite_access_token")
     if token:
         os.environ["KITE_ACCESS_TOKEN"] = str(token)
 
 
 def _boot():
-    # Never override=True — that wipes Streamlit Secrets already loaded into os.environ.
     load_dotenv(ROOT / ".env", override=False)
     _restore_kite_token_from_session()
     settings, conn = boot()
@@ -71,7 +52,7 @@ def _consume_kite_callback(settings) -> None:
     if not token:
         return
     if status and status != "success":
-        st.error(f"Kite login did not succeed (status={status}).")
+        st.error(f"Kite login failed (status={status}).")
         st.query_params.clear()
         return
     try:
@@ -80,591 +61,194 @@ def _consume_kite_callback(settings) -> None:
         if access:
             st.session_state["kite_access_token"] = access
             os.environ["KITE_ACCESS_TOKEN"] = str(access)
-        load_dotenv(ROOT / ".env", override=False)
+            st.success("Kite connected.")
         st.query_params.clear()
-        st.session_state["kite_flash"] = (
-            f"Kite connected as {session.get('user_name') or session.get('user_id')}."
-        )
-        st.rerun()
     except Exception as exc:
+        st.error(f"Could not exchange Kite token: {exc}")
         st.query_params.clear()
-        st.error(f"Could not exchange the Kite request token: {exc}")
 
 
-def _setup_tab(settings) -> None:
-    st.subheader("Streamlit Cloud deploy")
-    st.markdown(
-        """
-1. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**
-2. Repo: `shaikssam65/NOT_BACKTEST` · Branch: `master` · **Main file path:** `app.py`
-3. **Advanced settings → Secrets** — paste the block from `.streamlit/secrets.toml.example` with your real keys
-4. Deploy, copy your app URL (looks like `https://xxxx.streamlit.app/`)
-5. On [developers.kite.trade/apps](https://developers.kite.trade/apps) → **sam_bot** → set **Redirect URL** to that exact HTTPS URL (with trailing `/`)
-6. Put the same URL in Streamlit Secrets as `KITE_REDIRECT_URL`, then reboot the app
-"""
-    )
-    cloud_redirect = st.text_input(
-        "Your Streamlit app URL (for Kite Redirect URL + secrets)",
-        value=settings.kite_redirect_url
-        if settings.kite_redirect_url.startswith("https://")
-        else "https://YOUR-APP-NAME.streamlit.app/",
-        help="Must match Kite Connect Redirect URL exactly.",
-    )
-    if st.button("Use this URL as KITE_REDIRECT_URL"):
-        url = cloud_redirect.strip().rstrip("/") + "/"
-        upsert_env({"KITE_REDIRECT_URL": url})
-        st.success(f"Saved redirect URL: {url}")
-        st.rerun()
-
-    st.divider()
-    st.subheader("1. Create the Kite app (get API key + secret)")
-    st.link_button(
-        "Open Kite Connect → Create app / get API keys",
-        "https://developers.kite.trade/apps",
-        type="primary",
-    )
-    st.caption(
-        "After you create the app, the app page shows **API key** and **API secret**. "
-        "Copy both and paste them in step 2 below (local) or Streamlit Secrets (cloud)."
-    )
-
-    redirect = kite_redirect_url(settings)
-    st.markdown("### Fill the Create / Edit app form")
-    st.code(
-        f"""Type:              Connect
-App name:          sam_bot
-Zerodha Client ID: AR5852
-Redirect URL:      {redirect}
-Postback URL:      (leave empty)
-Description:       Personal NSE cash-equity research and paper-trading bot.""",
-        language=None,
-    )
-    st.text_input(
-        "Copy this Redirect URL into the Kite form",
-        value=redirect,
-        key="copy_redirect_url",
-    )
-    if redirect.startswith("https://") and "streamlit.app" in redirect:
-        st.success("Using HTTPS Streamlit URL — correct for Cloud deploy.")
-    else:
-        st.error(
-            "Local mode uses `http://127.0.0.1:8501/`. "
-            "For Streamlit Cloud, change Redirect URL to your `https://….streamlit.app/` URL."
-        )
-    st.warning("**Postback URL:** leave blank.")
-
-    st.divider()
-    st.subheader("2. Save API keys here (local) or use Streamlit Secrets (cloud)")
-    st.caption(
-        "OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys) · "
-        "Kite: [developers.kite.trade/apps](https://developers.kite.trade/apps)"
-    )
-    openai_in = st.text_input("OpenAI API key", type="password", placeholder="sk-...")
-    kite_key = st.text_input("Kite API key", type="password", placeholder="from your Kite app page")
-    kite_secret = st.text_input("Kite API secret", type="password", placeholder="from your Kite app page")
-    if st.button("Save keys", type="primary"):
-        updates: dict[str, str] = {"PAPER_MODE": "true"}
-        # Keep Cloud redirect if already set; only default to localhost when unset.
-        if not (os.getenv("KITE_REDIRECT_URL") or "").startswith("https://"):
-            updates["KITE_REDIRECT_URL"] = DEFAULT_REDIRECT_URL
-        if openai_in.strip():
-            updates["OPENAI_API_KEY"] = openai_in.strip()
-        if kite_key.strip():
-            updates["KITE_API_KEY"] = kite_key.strip()
-        if kite_secret.strip():
-            updates["KITE_API_SECRET"] = kite_secret.strip()
-        upsert_env(updates)
-        st.success("Saved. On Streamlit Cloud, prefer App → Settings → Secrets for permanent keys.")
-        st.rerun()
-
-    settings = load_settings()
-    c1, c2, c3 = st.columns(3)
-    c1.metric("OpenAI", "ready" if settings.openai_ready else "missing")
-    c2.metric("Kite API key", "saved" if settings.kite_api_key else "missing")
-    c3.metric("Kite API secret", "saved" if settings.kite_api_secret else "missing")
-
-    st.divider()
-    st.subheader("3. Connect Kite (daily login)")
-    status = profile_status(settings)
-    if status.get("ok"):
-        st.success(
-            f"Connected as **{status.get('user_name') or status.get('user_id')}** "
-            f"({status.get('user_id')}). Access tokens expire every trading day (~6 AM IST)."
-        )
-        if st.button("Disconnect Kite"):
-            clear_session()
-            st.session_state.pop("kite_access_token", None)
-            os.environ.pop("KITE_ACCESS_TOKEN", None)
-            st.rerun()
-    else:
-        reason = status.get("reason")
-        if reason == "missing_api_key":
-            st.warning("Save the Kite API key and secret first, then connect.")
-        elif reason == "token_invalid_or_expired":
-            st.warning("Saved token is invalid or expired. Login again.")
+def _setup_sidebar(settings) -> None:
+    with st.sidebar:
+        st.markdown("### Setup")
+        st.caption("Same secrets as before (.env / Streamlit Secrets).")
+        if settings.paper_mode:
+            st.success("PAPER_MODE on — simulated fills")
         else:
-            st.info("Not connected. Start the dashboard first, then click Connect Kite.")
-        if settings.kite_api_key and settings.kite_api_secret:
-            st.link_button("Connect Kite", login_url(settings.kite_api_key), type="primary")
-            st.caption(
-                f"After login, Zerodha sends you back to `{kite_redirect_url(settings)}` "
-                "with a request_token. This page exchanges it automatically."
-            )
+            st.error("PAPER_MODE off — real Zerodha orders")
 
-
-def _backtest_tab(settings, conn, provider) -> None:
-    st.subheader("Run a backtest")
-    universe = get_universe(conn)
-    symbols = [s.symbol for s in universe]
-    default_end = date.today()
-    default_start = default_end - timedelta(days=365)
-    c1, c2, c3, c4 = st.columns(4)
-    strategy_options = [s for s in PRIMARY_STRATEGIES if s != "small_swing"]
-    default_ix = 0
-    symbol = c1.selectbox("Stock", symbols, index=symbols.index("RELIANCE") if "RELIANCE" in symbols else 0)
-    strategy = c2.selectbox(
-        "Strategy",
-        strategy_options,
-        index=default_ix,
-        format_func=lambda s: STRATEGY_LABELS.get(s, s),
-        help="Small-swing mode is for Auto-trade only (capital split + 30% approval sells).",
-    )
-    start = c3.date_input("Start", value=default_start)
-    end = c4.date_input("End", value=default_end)
-    capital = st.number_input("Capital (₹)", min_value=10000.0, value=float(settings.capital), step=10000.0)
-    use_llm = st.checkbox(
-        "Use live OpenAI on each candidate bar (slow and costly). Leave off for the heuristic AI filter.",
-        value=False,
-    )
-    kite_ok = bool(profile_status(settings).get("ok"))
-    if kite_ok:
-        st.success("Kite is connected → backtest will **prefer Kite history** (Yahoo only if Kite fails).")
-    else:
-        st.warning("Kite is **not** connected → backtest will use **Yahoo Finance** history.")
-
-    if st.button("Run backtest", type="primary"):
-        with st.spinner(f"Backtesting {symbol} / {strategy}…"):
-            try:
-                result = backtest(
-                    symbol,
-                    strategy,
-                    start,
-                    end,
-                    float(capital),
-                    settings,
-                    provider,
-                    conn,
-                    use_llm=use_llm,
-                )
-                payload = result.to_dict()
-                src = provider.cache.source_summary(symbol, as_date(start), as_date(end))
-                payload["price_data_source"] = src["label"]
-                payload["kite_bars"] = src["kite_bars"]
-                payload["yahoo_bars"] = src["yahoo_bars"]
-                st.session_state["backtest"] = payload
-                st.session_state["backtest_export_paths"] = try_save_csv_files(payload)
-            except Exception as exc:
-                st.error(str(exc))
-                return
-
-    payload = st.session_state.get("backtest")
-    if not payload:
-        st.caption("Pick a name and date range, then run. Repeated identical runs are served from cache.")
-        return
-
-    source = str(payload.get("price_data_source") or "unknown")
-    kite_bars = int(payload.get("kite_bars") or 0)
-    yahoo_bars = int(payload.get("yahoo_bars") or 0)
-    if source == "kite":
-        st.success(f"**Price data source: Kite** ({kite_bars} bars in cache for this range).")
-    elif source == "yahoo":
-        st.warning(f"**Price data source: Yahoo** ({yahoo_bars} bars in cache for this range).")
-    elif source == "mixed":
-        st.info(
-            f"**Price data source: mixed** — Kite bars: {kite_bars}, Yahoo bars: {yahoo_bars}. "
-            "Older cache may mix providers."
-        )
-    else:
-        st.caption("Price data source: unknown (no OHLCV cache rows yet).")
-
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Total return", f"{payload['total_return_pct']:.2f}%")
-    m2.metric("Win rate", f"{payload['win_rate']:.1f}%")
-    m3.metric("Max drawdown", f"{payload['max_drawdown_pct']:.2f}%")
-    m4.metric("Trades", payload["number_of_trades"])
-    m5.metric("Ending equity", f"₹{payload['ending_equity']:,.0f}")
-    st.info(payload.get("commentary") or "")
-    curve = payload.get("equity_curve") or []
-    if curve:
-        frame = pd.DataFrame(curve)
-        frame["date"] = pd.to_datetime(frame["date"])
-        st.line_chart(frame.set_index("date")["equity"], height=280)
-    trades = payload.get("trades") or []
-    if trades:
-        st.dataframe(pd.DataFrame(trades), hide_index=True, use_container_width=True)
-    if payload.get("cached"):
-        st.caption("Served from SQLite cache.")
-
-    st.subheader("Download CSV")
-    st.caption(
-        "On Streamlit Cloud, use these download buttons — files are not pushed to GitHub. "
-        "Results are also cached in SQLite for the same inputs."
-    )
-    symbol = str(payload.get("symbol") or "backtest")
-    strategy = str(payload.get("strategy_name") or "strategy")
-    d1, d2, d3 = st.columns(3)
-    d1.download_button(
-        "Summary CSV",
-        data=to_csv_bytes(summary_frame(payload)),
-        file_name=f"{symbol}_{strategy}_summary.csv",
-        mime="text/csv",
-        key="dl_summary",
-    )
-    d2.download_button(
-        "Trades CSV",
-        data=to_csv_bytes(trades_frame(payload)),
-        file_name=f"{symbol}_{strategy}_trades.csv",
-        mime="text/csv",
-        key="dl_trades",
-    )
-    d3.download_button(
-        "Equity curve CSV",
-        data=to_csv_bytes(equity_frame(payload)),
-        file_name=f"{symbol}_{strategy}_equity.csv",
-        mime="text/csv",
-        key="dl_equity",
-    )
-    paths = st.session_state.get("backtest_export_paths") or {}
-    if paths:
-        st.caption("Also saved on server disk (local/ephemeral): " + ", ".join(paths.values()))
-
-
-def _auto_trade_tab(settings, conn, provider) -> None:
-    st.subheader("Daily auto-trade")
-    st.markdown(
-        """
-**Decision modes:**  
-1. **Rules combo** — 6 rule voters  
-2. **Dual agents** — Agent-Trend + Agent-Risk  
-3. **Combined** — rules + both agents must agree  
-4. **Under ₹50 weekly** — 2–3 medium established names, split capital, **auto-sell at +30%** (no approval)  
-
-Schedule locally: **10:00 IST daily** profit exits · **Monday weekly** under-₹50 buys (`scripts/`).
-"""
-    )
-    if settings.paper_mode:
-        st.success("PAPER_MODE is ON — orders are paper fills only (safe to try).")
-    else:
-        st.error("PAPER_MODE is OFF — this can send **live** Zerodha orders. Only for registered algo use.")
-
-    default_idx = list(PRIMARY_STRATEGIES).index("rules_combo")
-    strategy = st.selectbox(
-        "Decision mode",
-        list(PRIMARY_STRATEGIES),
-        index=default_idx,
-        format_func=lambda s: STRATEGY_LABELS.get(s, s),
-        key="auto_strategy",
-    )
-    trade_capital = st.number_input(
-        "Capital to use for trading (₹)",
-        min_value=10_000.0,
-        max_value=50_000_000.0,
-        value=float(settings.capital),
-        step=10_000.0,
-        key="auto_capital",
-        help="For Under-₹50 mode this amount is split equally across 2–3 picks.",
-    )
-    pick_n = 3
-    if strategy == "small_swing":
-        pick_n = int(
-            st.selectbox(
-                "How many under-₹50 stocks to buy",
-                [2, 3],
-                index=1,
-                key="small_pick_n",
-            )
-        )
-        st.caption(
-            f"Each pick ~₹{float(trade_capital) / pick_n:,.0f} · "
-            f"max price ₹{settings.small_swing.max_price:.0f} · "
-            f"auto-sell at +{settings.small_swing.min_profit_sell_pct:.0f}%."
-        )
-    use_llm = st.checkbox(
-        "Use OpenAI for Dual agents / Combined (slower). Leave OFF for fast heuristics.",
-        value=False,
-        key="auto_llm",
-        help="ON = OpenAI only on top ~20 stocks. OFF = instant heuristics. Full-universe OpenAI was freezing the app.",
-    )
-    c1, c2, c3 = st.columns(3)
-    if c1.button("Run now", type="primary"):
-        status = st.status("Running…", expanded=True)
-        try:
-
-            def _progress(msg: str) -> None:
-                status.write(msg)
-
-            if strategy == "small_swing":
-                from trading_bot.small_swing import run_small_swing_trade
-
-                result = run_small_swing_trade(
-                    conn,
-                    settings,
-                    provider,
-                    trade_capital=float(trade_capital),
-                    pick_count=pick_n,
-                    progress=_progress,
-                )
+        kite = profile_status(settings)
+        if kite.get("ok"):
+            st.success(f"Kite: {kite.get('user_id') or 'connected'}")
+            if st.button("Disconnect Kite"):
+                clear_session()
+                st.session_state.pop("kite_access_token", None)
+                os.environ.pop("KITE_ACCESS_TOKEN", None)
+                st.rerun()
+        else:
+            st.warning(f"Kite: {kite.get('reason') or 'not connected'}")
+            if settings.kite_api_key and settings.kite_api_secret:
+                st.link_button("Connect Kite", login_url(settings.kite_api_key), type="primary")
+                st.caption(f"Redirect: `{kite_redirect_url(settings)}`")
             else:
-                result = run_daily_auto_trade(
-                    conn,
-                    settings,
-                    provider,
-                    strategy=strategy,
-                    use_llm=use_llm,
-                    manage_exits=True,
-                    trade_capital=float(trade_capital),
-                    progress=_progress,
-                )
-            st.session_state["auto_trade"] = result
-            status.update(label="Finished", state="complete")
-        except Exception as exc:
-            status.update(label="Failed", state="error")
-            st.error(str(exc))
-            return
-    if c2.button("Auto-sell ≥30% now (10 AM job)"):
-        try:
-            report = auto_take_profits(conn, settings)
-            st.session_state["profit_exits"] = report
-            st.success(
-                f"Bot sells: {report['sold_bot']} · Kite sells: {report['sold_kite']} "
-                f"(threshold {report['threshold_pct']}%)"
+                st.error("Add KITE_API_KEY + KITE_API_SECRET in Secrets / .env")
+
+        with st.expander("Save keys locally (optional)"):
+            api_key = st.text_input("KITE_API_KEY", value=settings.kite_api_key or "", type="password")
+            api_secret = st.text_input(
+                "KITE_API_SECRET", value=settings.kite_api_secret or "", type="password"
             )
-            if report.get("bot_actions"):
-                st.dataframe(pd.DataFrame(report["bot_actions"]), hide_index=True, use_container_width=True)
-            if report.get("kite_actions"):
-                st.dataframe(pd.DataFrame(report["kite_actions"]), hide_index=True, use_container_width=True)
-        except Exception as exc:
-            st.error(str(exc))
-    if c3.button("Manage exits (stop/target)"):
-        try:
-            actions = manage_open_positions(conn, settings)
-            st.session_state["exit_actions"] = actions
-            st.info(f"Checked {len(actions)} open position(s).")
-        except Exception as exc:
-            st.error(str(exc))
+            openai_key = st.text_input(
+                "OPENAI_API_KEY", value=settings.openai_api_key or "", type="password"
+            )
+            if st.button("Save to .env"):
+                updates = {}
+                if api_key.strip():
+                    updates["KITE_API_KEY"] = api_key.strip()
+                if api_secret.strip():
+                    updates["KITE_API_SECRET"] = api_secret.strip()
+                if openai_key.strip():
+                    updates["OPENAI_API_KEY"] = openai_key.strip()
+                if updates:
+                    upsert_env(updates)
+                    st.success("Saved — reboot app if on Cloud use Secrets instead.")
+                else:
+                    st.info("Nothing to save.")
 
-    result = st.session_state.get("auto_trade")
-    if result:
         st.markdown("---")
-        st.markdown(
-            f"**Mode:** `{result['mode']}` · **Style:** `{result.get('style', 'daily')}` · "
-            f"**Strategy:** `{result['strategy']}` · "
-            f"**Capital:** ₹{result.get('trade_capital', 0):,.0f} · "
-            f"**Scanned:** {result.get('scanned', 0)} · "
-            f"**Picks:** {', '.join(result.get('picks') or []) or 'none'}"
-        )
-        st.caption(result.get("note") or "")
-
-        with st.expander("Activity log", expanded=True):
-            for line in result.get("activity") or []:
-                st.text(line)
-
-        detected = result.get("detected") or []
-        st.markdown("### Stocks detected")
-        if detected:
-            st.dataframe(pd.DataFrame(detected), hide_index=True, use_container_width=True)
-        else:
-            st.caption("No buy candidates this run.")
-
-        if result.get("votes"):
-            with st.expander("Votes (detail)", expanded=False):
-                vote_rows = []
-                for v in result["votes"]:
-                    rv = v.get("rule_votes") or {}
-                    vote_rows.append(
-                        {
-                            "symbol": v.get("symbol"),
-                            "final": v.get("final_signal"),
-                            "score": v.get("final_score"),
-                            "rule_buys": v.get("rule_buy_count"),
-                            "agent_trend": (v.get("agent_trend") or {}).get("signal"),
-                            "agent_risk": (v.get("agent_risk") or {}).get("signal"),
-                            "reasoning": v.get("reasoning"),
-                        }
-                    )
-                st.dataframe(pd.DataFrame(vote_rows), hide_index=True, use_container_width=True)
-
-        st.markdown("### Orders")
-        if result.get("orders"):
-            st.dataframe(pd.DataFrame(result["orders"]), hide_index=True, use_container_width=True)
-        else:
-            st.caption("No orders placed.")
-
-        plans = result.get("entry_plans") or []
-        st.markdown("### Entry & exit plan")
-        if plans:
-            st.dataframe(pd.DataFrame(plans), hide_index=True, use_container_width=True)
-        else:
-            st.caption("No filled entries this run.")
-
-        if result.get("exits") or result.get("profit_exits"):
-            st.markdown("### Exit / profit actions")
-            pe = result.get("profit_exits") or {}
-            if pe.get("bot_actions"):
-                st.dataframe(pd.DataFrame(pe["bot_actions"]), hide_index=True, use_container_width=True)
-            elif result.get("exits"):
-                st.dataframe(pd.DataFrame(result["exits"]), hide_index=True, use_container_width=True)
-
-    opens = list_open_positions(conn)
-    st.markdown("### Open positions (bot book)")
-    if opens:
-        st.dataframe(pd.DataFrame(opens), hide_index=True, use_container_width=True)
-    else:
-        st.caption("No open positions.")
-
-    exits = st.session_state.get("exit_actions")
-    if exits and not result:
-        st.markdown("**Last exit check**")
-        st.dataframe(pd.DataFrame(exits), hide_index=True, use_container_width=True)
-
-
-def _selection_tab(settings, conn, provider) -> None:
-    st.subheader("Daily selection")
-    as_of = st.date_input("Selection date", value=date.today(), key="sel_date")
-    manual = st.text_input("Optional manual symbol (tagged separately, still no live orders)", placeholder="INFY")
-    use_llm = st.checkbox("Use OpenAI for the filter", value=settings.openai_ready)
-    if st.button("Run selection", type="primary"):
-        with st.spinner("Scoring universe… this can take a few minutes on the first Kite/Yahoo download."):
-            try:
-                picks = run_daily_selection(
-                    conn,
-                    settings,
-                    provider,
-                    as_of=as_of,
-                    manual_symbol=manual.strip() or None,
-                    use_llm=use_llm,
-                )
-                st.session_state["picks"] = [p.to_record(as_of.isoformat()) | {"name": p.stock.name} for p in picks]
-            except Exception as exc:
-                st.error(str(exc))
-                return
-
-    rows = st.session_state.get("picks") or list_selections(conn, as_of.isoformat())
-    if not rows:
-        st.caption("No selection stored for this date yet.")
-        return
-    frame = pd.DataFrame(rows)
-    if "source" in frame.columns:
-        st.dataframe(frame, hide_index=True, use_container_width=True)
-        ai_rows = frame[frame["source"] == "ai_selected"] if "source" in frame else frame
-        manual_rows = frame[frame["source"] == "manual"] if "source" in frame else frame.iloc[0:0]
-        st.caption(f"AI-selected: {len(ai_rows)} · Manual: {len(manual_rows)}")
-    else:
-        st.dataframe(frame, hide_index=True, use_container_width=True)
-
-
-def _quotes_tab(settings, conn) -> None:
-    st.subheader("Live quotes")
-    status = profile_status(settings)
-    if not status.get("ok"):
-        st.warning("Connect Kite on the Setup tab to see live NSE last prices. PAPER_MODE is still on — quotes only, no orders.")
-        return
-
-    stored = list_selections(conn, date.today().isoformat())
-    default_symbols = [row["symbol"] for row in stored] or ["RELIANCE", "HDFCBANK", "TCS", "INFY"]
-    universe = get_universe(conn)
-    options = [s.symbol for s in universe]
-    chosen = st.multiselect("Symbols", options, default=[s for s in default_symbols if s in options][:8])
-    if st.button("Refresh quotes") or chosen:
-        if not chosen:
-            return
-        try:
-            prices = fetch_ltp(chosen, settings)
-        except Exception as exc:
-            st.error(f"Quote fetch failed: {exc}")
-            return
-        if not prices:
-            st.warning("No prices returned. Confirm the Connect app is active and you completed today's login.")
-            return
-        frame = pd.DataFrame(
-            [{"symbol": sym, "ltp": prices.get(sym)} for sym in chosen]
-        )
-        st.dataframe(frame, hide_index=True, use_container_width=True)
-        cols = st.columns(min(4, len(frame)))
-        for i, row in enumerate(frame.itertuples(index=False)):
-            cols[i % len(cols)].metric(row.symbol, f"₹{row.ltp:,.2f}" if row.ltp is not None else "—")
+        st.caption("OpenAI: " + ("ready" if settings.openai_ready else "missing (rules-only fallback)"))
 
 
 def main() -> None:
     settings, conn, provider = _boot()
-    _consume_kite_callback(settings)
-    _restore_kite_token_from_session()
-    settings = load_settings()
+    _consume_kite_callback(load_settings())
+    settings, conn, provider = _boot()
+    _setup_sidebar(settings)
 
-    st.title("NSE cash-equity bot")
-    st.caption("Phase 2 dashboard — backtests, selection audit, and Kite login. No live orders.")
-    if settings.paper_mode:
-        st.success("PAPER_MODE is on. Connecting Kite only authorizes data and (later) paper fills — not live orders.")
-    else:
-        st.error("PAPER_MODE is off. Turn it back to true until Phase 4–6 are done.")
+    st.title("NSE Simple Bot")
+    st.markdown(
+        """
+Two buttons only:
 
-    flash = st.session_state.pop("kite_flash", None)
-    if flash:
-        st.success(flash)
+1. **Sell profits** — read your Kite holdings; if any are **≥30%** up, place a **sell**; otherwise leave them  
+2. **Buy with capital** — research **2–3 medium established** stocks (MA + rules + OpenAI/news), split your money, place **buys**
+"""
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
     kite = profile_status(settings)
-    c1.metric("Paper mode", "on" if settings.paper_mode else "OFF")
-    c2.metric("OpenAI", "ready" if settings.openai_ready else "missing")
-    c3.metric("Kite", "connected" if kite.get("ok") else "not connected")
-    c4.metric("Universe", len(get_universe(conn)))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Paper mode", "ON" if settings.paper_mode else "OFF")
+    c2.metric("Kite", "connected" if kite.get("ok") else "not connected")
+    c3.metric("OpenAI", "ready" if settings.openai_ready else "off")
 
-    if kite.get("ok"):
-        st.info(
-            "Kite connected. Open **Backtest** (prefers Kite history) or **Daily selection**. "
-            "Still no live orders while PAPER_MODE is on."
-        )
-    else:
-        st.warning(
-            "**Kite is not connected yet.** Open **Setup & Kite** → **Connect Kite**, "
-            "then use **Backtest** / **Auto-trade**. Paper auto-trade works without live orders."
-        )
-        if settings.kite_api_key and settings.kite_api_secret:
-            st.link_button(
-                "Connect Kite now",
-                login_url(settings.kite_api_key),
-                type="primary",
-            )
+    st.markdown("---")
+    st.subheader("1 · Auto-sell ≥30% profits")
+    st.caption("Pulls live holdings from your Kite account. Leaves positions under 30% alone.")
+    if st.button("Sell holdings at ≥30% profit", type="primary", use_container_width=True):
+        if not kite.get("ok"):
+            st.error("Connect Kite first (sidebar).")
         else:
-            st.error(
-                "Put `KITE_API_KEY` and `KITE_API_SECRET` in Streamlit **Secrets**, then reboot. "
-                "On Cloud, Secrets are required — the on-page Save form is not enough alone."
-            )
+            status = st.status("Checking holdings…", expanded=True)
+            try:
 
-    redirect = kite_redirect_url(settings)
-    on_cloud = (
-        os.getenv("STREAMLIT_RUNTIME_ENV", "").lower() == "cloud"
-        or "STREAMLIT_SHARING_MODE" in os.environ
+                def _p(msg: str) -> None:
+                    status.write(msg)
+
+                report = auto_sell_profits(settings, min_profit_pct=PROFIT_SELL_PCT, progress=_p)
+                st.session_state["sell_report"] = report
+                status.update(label="Done", state="complete")
+            except Exception as exc:
+                status.update(label="Failed", state="error")
+                st.error(str(exc))
+
+    sell_report = st.session_state.get("sell_report")
+    if sell_report:
+        st.info(sell_report.get("note") or "")
+        if sell_report.get("sold"):
+            st.markdown("**Sold / would sell**")
+            st.dataframe(pd.DataFrame(sell_report["sold"]), hide_index=True, use_container_width=True)
+        if sell_report.get("kept"):
+            st.markdown("**Kept (< 30%)**")
+            st.dataframe(pd.DataFrame(sell_report["kept"]), hide_index=True, use_container_width=True)
+        if sell_report.get("holdings") and not sell_report.get("sold") and not sell_report.get("kept"):
+            st.dataframe(pd.DataFrame(sell_report["holdings"]), hide_index=True, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("2 · Research & buy 2–3 stocks")
+    st.caption(
+        "Universe: medium established NSE names. Scoring: SMA/EMA/RSI/trend/momentum/volume + OpenAI with latest news. "
+        "Capital is split equally."
     )
-    if "YOUR-APP-NAME" in redirect or (on_cloud and not redirect.startswith("https://")):
-        st.error(
-            'Set `KITE_REDIRECT_URL = "https://backtestind.streamlit.app/"` in Streamlit Secrets '
-            "and the same URL on the Kite app, then reboot."
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        capital = st.number_input(
+            "Capital to invest (₹)",
+            min_value=5_000.0,
+            max_value=50_000_000.0,
+            value=float(settings.capital),
+            step=5_000.0,
         )
+    with col_b:
+        pick_n = st.selectbox("How many stocks", [2, 3], index=1)
 
-    tab_setup, tab_bt, tab_sel, tab_auto, tab_px = st.tabs(
-        ["Setup & Kite", "Backtest", "Daily selection", "Auto-trade", "Live quotes"]
-    )
-    with tab_setup:
-        _setup_tab(settings)
-    with tab_bt:
-        _backtest_tab(settings, conn, provider)
-    with tab_sel:
-        _selection_tab(settings, conn, provider)
-    with tab_auto:
-        _auto_trade_tab(settings, conn, provider)
-    with tab_px:
-        _quotes_tab(settings, conn)
+    if st.button("Research & place buy orders", type="primary", use_container_width=True):
+        status = st.status("Researching…", expanded=True)
+        try:
+
+            def _p(msg: str) -> None:
+                status.write(msg)
+
+            result = research_and_buy(
+                conn,
+                settings,
+                provider,
+                capital=float(capital),
+                pick_count=int(pick_n),
+                progress=_p,
+            )
+            st.session_state["buy_report"] = result
+            status.update(label="Done", state="complete")
+        except Exception as exc:
+            status.update(label="Failed", state="error")
+            st.error(str(exc))
+
+    buy_report = st.session_state.get("buy_report")
+    if buy_report:
+        st.info(buy_report.get("note") or "")
+        if buy_report.get("picks"):
+            st.markdown("**Picks**")
+            show = []
+            for p in buy_report["picks"]:
+                show.append(
+                    {
+                        "symbol": p.get("symbol"),
+                        "price": p.get("price"),
+                        "qty": p.get("qty"),
+                        "slice_₹": p.get("slice_capital"),
+                        "stop": p.get("stop"),
+                        "target": p.get("target"),
+                        "rules": p.get("rule_buys"),
+                        "why": p.get("llm_note"),
+                    }
+                )
+            st.dataframe(pd.DataFrame(show), hide_index=True, use_container_width=True)
+            for p in buy_report["picks"]:
+                news = p.get("news") or []
+                if news:
+                    with st.expander(f"News · {p.get('symbol')}"):
+                        for n in news:
+                            st.write(f"- {n}")
+        if buy_report.get("orders"):
+            st.markdown("**Orders**")
+            st.dataframe(pd.DataFrame(buy_report["orders"]), hide_index=True, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("Bot book (paper/live positions from this app)")
+    opens = list_open_positions(conn)
+    if opens:
+        st.dataframe(pd.DataFrame(opens), hide_index=True, use_container_width=True)
+    else:
+        st.caption("No open bot positions yet.")
 
 
 if __name__ == "__main__":

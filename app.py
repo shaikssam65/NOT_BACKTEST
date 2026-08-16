@@ -14,7 +14,7 @@ if str(SRC) not in sys.path:
 import streamlit as st
 
 # MUST be the first Streamlit command — otherwise Cloud shows a blank page.
-st.set_page_config(page_title="NSE Equity Bot", layout="wide")
+st.set_page_config(page_title="NSE Simple Bot", layout="wide")
 
 
 def _apply_streamlit_secrets() -> None:
