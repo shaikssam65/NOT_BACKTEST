@@ -16,6 +16,29 @@ def test_upsert_env_preserves_other_keys(tmp_path: Path):
     assert "old" not in text
 
 
+def test_save_session_accepts_datetime_login_time(tmp_path: Path, monkeypatch):
+    from datetime import datetime, timezone
+
+    session_path = tmp_path / "kite_session.json"
+    env_path = tmp_path / ".env"
+    env_path.write_text("PAPER_MODE=true\n", encoding="utf-8")
+    monkeypatch.setattr("trading_bot.kite_auth.ENV_PATH", env_path)
+    save_session(
+        {
+            "access_token": "tok_abc",
+            "user_id": "AR5852",
+            "user_name": "Test",
+            "login_time": datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc),
+        },
+        path=session_path,
+    )
+    loaded = load_session(session_path)
+    assert loaded is not None
+    assert loaded["access_token"] == "tok_abc"
+    assert isinstance(loaded["login_time"], str)
+    assert "KITE_ACCESS_TOKEN=tok_abc" in env_path.read_text(encoding="utf-8")
+
+
 def test_save_and_load_session(tmp_path: Path, monkeypatch):
     session_path = tmp_path / "kite_session.json"
     env_path = tmp_path / ".env"
@@ -33,7 +56,6 @@ def test_save_and_load_session(tmp_path: Path, monkeypatch):
     assert loaded is not None
     assert loaded["access_token"] == "tok_123"
     assert loaded["user_id"] == "AR5852"
-    assert "KITE_ACCESS_TOKEN=tok_123" in env_path.read_text(encoding="utf-8")
 
 
 def test_redirect_url_has_trailing_slash(settings):

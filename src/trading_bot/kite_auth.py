@@ -77,20 +77,29 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
     return data
 
 
+def _as_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
 def save_session(payload: dict[str, Any], path: Path | None = None) -> Path | None:
     session_path = path or SESSION_PATH
+    login_time = payload.get("login_time")
     stored = {
-        "access_token": payload.get("access_token"),
-        "public_token": payload.get("public_token"),
-        "user_id": payload.get("user_id"),
-        "user_name": payload.get("user_name"),
-        "email": payload.get("email"),
-        "login_time": payload.get("login_time") or datetime.now(timezone.utc).isoformat(),
+        "access_token": _as_text(payload.get("access_token")),
+        "public_token": _as_text(payload.get("public_token")),
+        "user_id": _as_text(payload.get("user_id")),
+        "user_name": _as_text(payload.get("user_name")),
+        "email": _as_text(payload.get("email")),
+        "login_time": _as_text(login_time) or datetime.now(timezone.utc).isoformat(),
         "saved_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     try:
         session_path.parent.mkdir(parents=True, exist_ok=True)
-        session_path.write_text(json.dumps(stored, indent=2), encoding="utf-8")
+        session_path.write_text(json.dumps(stored, indent=2, default=str), encoding="utf-8")
     except OSError:
         logger.info("Could not persist kite_session.json; token kept in environment only")
         session_path = None  # type: ignore[assignment]
@@ -121,7 +130,15 @@ def exchange_request_token(request_token: str, settings: Settings | None = None)
     kite = KiteConnect(api_key=settings.kite_api_key)
     session = kite.generate_session(request_token, api_secret=settings.kite_api_secret)
     save_session(session)
-    return session
+    # Return JSON-safe fields only (Kite may include datetime objects).
+    return {
+        "access_token": _as_text(session.get("access_token")),
+        "public_token": _as_text(session.get("public_token")),
+        "user_id": _as_text(session.get("user_id")),
+        "user_name": _as_text(session.get("user_name")),
+        "email": _as_text(session.get("email")),
+        "login_time": _as_text(session.get("login_time")),
+    }
 
 
 def kite_client(settings: Settings | None = None):
