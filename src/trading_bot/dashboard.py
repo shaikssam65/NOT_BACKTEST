@@ -30,6 +30,11 @@ from trading_bot.simple_bot import (
     manual_sell_holdings,
     research_and_buy,
 )
+from trading_bot.universe import (
+    DEFAULT_INDEX_FILTERS,
+    INDEX_LABELS,
+    refresh_universe,
+)
 
 try:
     st.set_page_config(page_title="NSE Simple Bot", layout="wide")
@@ -143,7 +148,7 @@ def main() -> None:
     st.markdown(
         """
 1. **Auto-sell** ≥30% · **Manual sell** · **Manual buy**  
-2. **Research** — price ranges → Suggest only or Place buy orders  
+2. **Research** — pick **Nifty indexes** + price ranges → Suggest only or Place buy orders  
    (rules + Finnhub + Kite; no ChatGPT)
 """
     )
@@ -347,10 +352,25 @@ def main() -> None:
     st.markdown("---")
     st.subheader("2 · Research 2–3 stocks")
     st.caption(
-        "Universe: **NSE Top 200** (Nifty 200). Under ₹100 only a few names exist "
-        "(e.g. IDEA, YESBANK, SUZLON, IRFC, NHPC). Choose one or more price ranges, "
+        "Universe: **Nifty indices** (union ≈ Nifty 500). Pick one or more indexes + price ranges, "
         "then Suggest only or Place buy orders."
     )
+    index_filters = st.multiselect(
+        "NSE indexes — pick any / multiple",
+        options=INDEX_LABELS,
+        default=[i for i in DEFAULT_INDEX_FILTERS if i in INDEX_LABELS],
+        help="Stock must belong to at least one selected index (from official NSE lists).",
+    )
+    c_ref1, c_ref2 = st.columns([3, 1])
+    with c_ref1:
+        st.caption("Lists come from NSE official index CSVs (archives.nseindia.com).")
+    with c_ref2:
+        if st.button("Refresh index lists", use_container_width=True):
+            try:
+                stocks = refresh_universe(conn, settings)
+                st.success(f"Loaded {len(stocks)} unique names from NSE.")
+            except Exception as exc:
+                st.error(str(exc))
     band_labels = [b[0] for b in PRICE_BANDS]
     price_bands = st.multiselect(
         "Price range (₹) — pick any / multiple",
@@ -371,6 +391,9 @@ def main() -> None:
         pick_n = st.selectbox("How many stocks", [2, 3], index=1)
 
     def _run_research(*, place_orders: bool) -> None:
+        if not index_filters:
+            st.error("Select at least one NSE index.")
+            return
         if not price_bands:
             st.error("Select at least one price range.")
             return
@@ -390,6 +413,7 @@ def main() -> None:
                 progress=_p,
                 place_orders=place_orders,
                 price_bands=list(price_bands),
+                index_filters=list(index_filters),
             )
             st.session_state["buy_report"] = result
             status.update(label="Done", state="complete")
@@ -408,8 +432,15 @@ def main() -> None:
     buy_report = st.session_state.get("buy_report")
     if buy_report:
         st.info(buy_report.get("note") or "")
+        bits = []
+        if buy_report.get("index_filters"):
+            bits.append("Indexes: " + ", ".join(buy_report["index_filters"]))
         if buy_report.get("price_bands"):
-            st.caption(f"Price bands used: {', '.join(buy_report['price_bands'])}")
+            bits.append("Bands: " + ", ".join(buy_report["price_bands"]))
+        if buy_report.get("universe_size"):
+            bits.append(f"Pool {buy_report['universe_size']}")
+        if bits:
+            st.caption(" · ".join(bits))
         if buy_report.get("picks"):
             title = "**Suggested picks**" if not buy_report.get("place_orders") else "**Picks**"
             st.markdown(title)

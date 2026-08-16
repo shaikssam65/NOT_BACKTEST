@@ -15,14 +15,14 @@ from trading_bot.execution import place_buy
 from trading_bot.indicators import add_indicators, snapshot_from_frame
 from trading_bot.kite_auth import kite_client
 from trading_bot.strategies import RULE_COMBO_VOTERS, rules_combo_vote
-from trading_bot.universe import get_universe
+from trading_bot.universe import UNIVERSE_LABEL, get_universe
 
 logger = logging.getLogger(__name__)
 ProgressCb = Callable[[str], None]
 
-# Medium established: skip mega-caps and micro junk.
-MIN_RANK = 25
-MAX_RANK = 160
+# Prefer liquid mid-large names when no index filter is passed (legacy).
+MIN_RANK = 1
+MAX_RANK = 500
 DEFAULT_PICKS = 3
 PROFIT_SELL_PCT = 30.0
 STOP_PCT = 8.0
@@ -38,9 +38,6 @@ PRICE_BANDS: list[tuple[str, float, float]] = [
     ("1000-5000", 1000.0, 5000.0),
 ]
 DEFAULT_PRICE_BANDS = ["50-100", "100-200", "200-500", "500-1000"]
-
-# Research scans this list (Nifty 200 / bundled nse_top200.csv), not the full NSE.
-UNIVERSE_LABEL = "NSE Top 200 (Nifty 200)"
 
 
 def _bands_max_hi(band_labels: list[str]) -> float:
@@ -593,13 +590,15 @@ def research_and_buy(
     progress: ProgressCb | None = None,
     place_orders: bool = True,
     price_bands: list[str] | None = None,
+    index_filters: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Research medium established stocks with MA + rule voters + Finnhub news + Kite live quotes,
+    Research stocks from selected Nifty indices with rule voters + Finnhub + Kite,
     then optionally split capital and place BUY orders. No OpenAI.
 
     place_orders=False → suggest only (show picks + planned qty, no orders).
     price_bands → e.g. ["0-50","100-200"]; empty/None = all bands.
+    index_filters → e.g. ["Nifty Midcap 150","Nifty Smallcap 250"].
     """
     log = progress or _noop
     as_of = as_of or date.today()
@@ -608,12 +607,11 @@ def research_and_buy(
     if capital < 5_000:
         raise ValueError("Capital should be at least ₹5,000")
     bands = list(price_bands) if price_bands else [b[0] for b in PRICE_BANDS]
+    indexes = list(index_filters) if index_filters else None
     mode = "paper" if settings.paper_mode else "live"
     action = "place buys" if place_orders else "suggest only"
-    # Under-₹100 names are rare in Top 200 — widen rank window and ease vote bar.
+    # Cheap names are thinner — ease the vote bar so Suggest isn't always empty.
     cheap_bands = _bands_max_hi(bands) <= 100.0
-    min_rank = 1 if cheap_bands else MIN_RANK
-    max_rank = 200 if cheap_bands else MAX_RANK
     min_buys = 1 if cheap_bands else 2
     min_score = 45.0 if cheap_bands else 60.0
 
@@ -622,12 +620,13 @@ def research_and_buy(
         f"bands={','.join(bands)} · mode={mode}"
     )
     log(
-        f"Universe: {UNIVERSE_LABEL} · rank {min_rank}-{max_rank}"
+        f"Universe: {UNIVERSE_LABEL} · indexes="
+        + (",".join(indexes) if indexes else "all")
         + (" · relaxed rules (cheap bands)" if cheap_bands else "")
     )
-    log("Step 1 — Score medium established names (SMA/EMA/RSI/trend/momentum/volume)…")
+    log("Step 1 — Score names (SMA/EMA/RSI/trend/momentum/volume)…")
 
-    universe = get_universe(conn)
+    universe = get_universe(conn, index_filters=indexes)
     lookback = as_of - timedelta(days=settings.selection.lookback_days + 20)
     scored: list[dict[str, Any]] = []
     in_band: list[dict[str, Any]] = []
@@ -635,8 +634,6 @@ def research_and_buy(
 
     for stock in universe:
         rank = int(stock.market_cap_rank)
-        if rank < min_rank or rank > max_rank:
-            continue
         df = provider.get_ohlcv(stock.symbol, lookback, as_of)
         if df.empty or len(df) < settings.indicators.sma_slow + 5:
             continue
@@ -652,6 +649,7 @@ def research_and_buy(
             "symbol": stock.symbol,
             "name": stock.name,
             "rank": rank,
+            "indices": list(stock.indices or []),
             "price": round(price, 2),
             "rule_score": float(score),
             "rule_signal": signal,
@@ -681,11 +679,11 @@ def research_and_buy(
 
     scored.sort(key=lambda c: (c["rule_buys"], c["rule_score"]), reverse=True)
     shortlist = scored[:12]
-    log(f"  In-band: {scanned} · rule shortlist: {len(shortlist)}")
+    log(f"  Pool {len(universe)} · in-band {scanned} · rule shortlist {len(shortlist)}")
     if scanned == 0:
         log(
-            "  Tip: NSE Top 200 has very few names under ₹100 "
-            "(e.g. IDEA, YESBANK, SUZLON, IRFC, NHPC, NMDC, IDFCFIRSTB)."
+            "  Tip: widen indexes (e.g. Nifty Smallcap 250) or price bands — "
+            "few names matched today."
         )
 
     if settings.finnhub_ready:
@@ -735,7 +733,9 @@ def research_and_buy(
             "mode": mode,
             "place_orders": place_orders,
             "price_bands": bands,
+            "index_filters": indexes or [],
             "universe": UNIVERSE_LABEL,
+            "universe_size": len(universe),
             "capital": capital,
             "scanned": scanned,
             "in_band": in_band[:20],
@@ -816,6 +816,9 @@ def research_and_buy(
         "mode": mode,
         "place_orders": place_orders,
         "price_bands": bands,
+        "index_filters": indexes or [],
+        "universe": UNIVERSE_LABEL,
+        "universe_size": len(universe),
         "capital": capital,
         "slice_capital": round(slice_cap, 2),
         "scanned": scanned,

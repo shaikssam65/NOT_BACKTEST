@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS universe (
     market_cap_rank INTEGER NOT NULL,
     last_price REAL,
     yahoo_ticker TEXT,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    indices TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ohlcv (

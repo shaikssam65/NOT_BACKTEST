@@ -16,12 +16,15 @@ def test_paper_mode_false_only_when_explicit(monkeypatch):
     assert settings.paper_mode is False
 
 
-def test_seed_universe_has_200_and_top100_split():
+def test_seed_universe_is_nifty500():
     stocks = load_seed_stocks()
-    assert len(stocks) == 200
-    assert sum(1 for s in stocks if s.in_top100) == 100
-    assert stocks[0].symbol == "RELIANCE"
-    assert any(s.symbol == "IDEA" and s.last_price is not None and s.last_price < 50 for s in stocks)
+    assert len(stocks) == 500
+    assert stocks[0].market_cap_rank == 1
+    assert any("Nifty 50" in (s.indices or []) for s in stocks)
+    assert any("Nifty Smallcap 250" in (s.indices or []) for s in stocks)
+    # Filtered Smallcap 50 should be smaller than full seed
+    small50 = [s for s in stocks if "Nifty Smallcap 50" in (s.indices or [])]
+    assert 40 <= len(small50) <= 60
 
 
 def test_get_universe_seeds_empty_db(db):
@@ -29,3 +32,11 @@ def test_get_universe_seeds_empty_db(db):
     stocks = get_universe(db)
     assert len(stocks) == 5
     assert stocks[0].market_cap_rank == 1
+
+
+def test_index_filter_on_seed():
+    stocks = load_seed_stocks()
+    nifty50 = [s for s in stocks if "Nifty 50" in (s.indices or [])]
+    assert len(nifty50) == 50
+    mid150 = [s for s in stocks if "Nifty Midcap 150" in (s.indices or [])]
+    assert len(mid150) == 150

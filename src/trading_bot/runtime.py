@@ -6,7 +6,7 @@ from pathlib import Path
 from trading_bot.config import Settings, load_settings
 from trading_bot.data_provider import CompositeDataProvider, KiteProvider, SqliteCache, YahooProvider
 from trading_bot.db import init_db
-from trading_bot.universe import get_universe
+from trading_bot.universe import get_universe, load_seed_stocks, persist_universe
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,11 @@ def boot(settings: Settings | None = None, db_path: Path | None = None):
     settings = settings or load_settings()
     path = db_path or settings.database_path
     conn = init_db(path)
-    get_universe(conn)
+    stocks = get_universe(conn)
+    # Upgrade legacy Top-200 DBs to Nifty-500 seed (index tags included).
+    if len(stocks) < 300 or not any(s.indices for s in stocks[:5]):
+        logger.info("Upgrading universe seed to Nifty 500 (%s → 500)", len(stocks))
+        persist_universe(conn, load_seed_stocks())
     return settings, conn
 
 

@@ -40,12 +40,15 @@ Research / Suggest uses **rules only** (plus Finnhub news when available, and Ki
 
 | Filter | Rule |
 | --- | --- |
-| **Stock list** | **NSE Top 200** (Nifty 200 / bundled `nse_top200.csv`) — **not** the full NSE |
-| Market-cap rank | Usually ranks **25–160**. For price bands ≤ ₹100, ranks **1–200** (still few cheap names) |
-| Price bands | User multi-select: `0-50`, `50-100`, `100-200`, `200-500`, `500-1000`, `1000-5000` (₹). Stock must fall in **at least one** selected band |
+| **Stock list** | Official NSE index constituents (union ≈ **Nifty 500**). Bundled seed: `nse_nifty500.csv` |
+| **Index filters** | Multi-select any of: Nifty 50, Next 50, 100, 200, Midcap 50/100/150, Smallcap 50/100/250, Nifty 500. Stock must be in **at least one** selected index |
+| Price bands | User multi-select: `0-50`, `50-100`, `100-200`, `200-500`, `500-1000`, `1000-5000` (₹) |
 | Enough history | Need enough daily bars for indicators (SMA slow + buffer) |
 
-**Why “below ₹100” often returns nothing:** Top 200 is mostly mid/large caps. Typically only a handful trade under ₹100 (e.g. IDEA, YESBANK, SUZLON, IRFC, NHPC, NMDC, IDFCFIRSTB). If none of those pass the rule voters that day, Suggest is empty — use **Manual buy** or pick higher price bands (`100-200`, `200-500`).
+Click **Refresh index lists** in the app to re-download the latest NSE CSVs.
+
+**Tip for under ₹100:** include **Nifty Smallcap 100/250** (and Midcap) — large-cap-only indexes have almost no names under ₹100.
+
 
 
 ### 2. Six rule voters (each votes `buy` / `hold` / `avoid`)

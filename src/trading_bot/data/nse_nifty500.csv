@@ -1,0 +1,501 @@
+rank,symbol,name,last_price,indices
+1,360ONE,360 ONE WAM Ltd.,1180.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+2,3MINDIA,3M India Ltd.,,Nifty 500|Nifty Midcap 150
+3,ABB,ABB India Ltd.,7649.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+4,ACC,ACC Ltd.,,Nifty 500|Nifty Midcap 150
+5,ACMESOLAR,ACME Solar Holdings Ltd.,,Nifty 500|Nifty Smallcap 250
+6,AIAENG,AIA Engineering Ltd.,,Nifty 500|Nifty Midcap 150
+7,APLAPOLLO,APL Apollo Tubes Ltd.,2083.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+8,AUBANK,AU Small Finance Bank Ltd.,1081.9,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+9,AWL,AWL Agri Business Ltd.,,Nifty 500|Nifty Midcap 150
+10,AADHARHFC,Aadhar Housing Finance Ltd.,,Nifty 500|Nifty Smallcap 250
+11,AARTIIND,Aarti Industries Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+12,AAVAS,Aavas Financiers Ltd.,,Nifty 500|Nifty Smallcap 250
+13,ABBOTINDIA,Abbott India Ltd.,,Nifty 500|Nifty Midcap 150
+14,ACE,Action Construction Equipment Ltd.,,Nifty 500|Nifty Smallcap 250
+15,ACUTAAS,Acutaas Chemicals Ltd.,,Nifty 500|Nifty Smallcap 250
+16,ADANIENSOL,Adani Energy Solutions Ltd.,1616.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+17,ADANIENT,Adani Enterprises Ltd.,3035.1,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+18,ADANIGREEN,Adani Green Energy Ltd.,1348.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+19,ADANIPORTS,Adani Ports and Special Economic Zone Ltd.,1700.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+20,ADANIPOWER,Adani Power Ltd.,205.25,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+21,ATGL,Adani Total Gas Ltd.,654.05,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+22,ABCAPITAL,Aditya Birla Capital Ltd.,401.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+23,ABFRL,Aditya Birla Fashion and Retail Ltd.,,Nifty 500|Nifty Smallcap 250
+24,ABLBL,Aditya Birla Lifestyle Brands Ltd.,,Nifty 500|Nifty Smallcap 250
+25,ABREL,Aditya Birla Real Estate Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+26,ABSLAMC,Aditya Birla Sun Life AMC Ltd.,,Nifty 500|Nifty Smallcap 250
+27,CPPLUS,Aditya Infotech Ltd.,,Nifty 500|Nifty Smallcap 250
+28,AEGISLOG,Aegis Logistics Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+29,AEGISVOPAK,Aegis Vopak Terminals Ltd.,,Nifty 500|Nifty Smallcap 250
+30,AFCONS,Afcons Infrastructure Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+31,AFFLE,Affle 3i Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+32,AJANTPHARM,Ajanta Pharmaceuticals Ltd.,,Nifty 500|Nifty Midcap 150
+33,ALKEM,Alkem Laboratories Ltd.,5368.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+34,ABDL,Allied Blenders and Distillers Ltd.,,Nifty 500|Nifty Smallcap 250
+35,ARE&M,Amara Raja Energy & Mobility Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+36,AMBER,Amber Enterprises India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+37,AMBUJACEM,Ambuja Cements Ltd.,417.5,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+38,ANANDRATHI,Anand Rathi Wealth Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+39,ANANTRAJ,Anant Raj Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+40,ANGELONE,Angel One Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+41,ANTHEM,Anthem Biosciences Ltd.,,Nifty 500|Nifty Midcap 150
+42,ANURAS,Anupam Rasayan India Ltd.,,Nifty 500|Nifty Smallcap 250
+43,APARINDS,Apar Industries Ltd.,,Nifty 500|Nifty Midcap 150
+44,APOLLOHOSP,Apollo Hospitals Enterprise Ltd.,8920.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+45,APOLLOTYRE,Apollo Tyres Ltd.,,Nifty 500|Nifty Midcap 150
+46,APTUS,Aptus Value Housing Finance India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+47,ASAHIINDIA,Asahi India Glass Ltd.,,Nifty 500|Nifty Smallcap 250
+48,ASHOKLEY,Ashok Leyland Ltd.,171.64,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+49,ASIANPAINT,Asian Paints Ltd.,2696.3,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+50,ASTERDM,Aster DM Quality Care Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+51,ASTRAL,Astral Ltd.,1556.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+52,ATHERENERG,Ather Energy Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+53,ATUL,Atul Ltd.,,Nifty 500|Nifty Smallcap 250
+54,AUROPHARMA,Aurobindo Pharma Ltd.,1622.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+55,AIIL,Authum Investment & Infrastructure Ltd.,,Nifty 500|Nifty Midcap 150
+56,DMART,Avenue Supermarts Ltd.,4060.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+57,AXISBANK,Axis Bank Ltd.,1217.4,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+58,BEML,BEML Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+59,BLS,BLS International Services Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+60,BSE,BSE Ltd.,3447.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+61,BAJAJ-AUTO,Bajaj Auto Ltd.,11700.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+62,BAJFINANCE,Bajaj Finance Ltd.,1087.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+63,BAJAJFINSV,Bajaj Finserv Ltd.,2008.3,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+64,BAJAJHLDNG,Bajaj Holdings & Investment Ltd.,11475.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+65,BAJAJHFL,Bajaj Housing Finance Ltd.,,Nifty 500|Nifty Midcap 150
+66,BALKRISIND,Balkrishna Industries Ltd.,,Nifty 500|Nifty Midcap 150
+67,BALRAMCHIN,Balrampur Chini Mills Ltd.,,Nifty 500|Nifty Smallcap 250
+68,BANDHANBNK,Bandhan Bank Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+69,BANKBARODA,Bank of Baroda,248.22,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+70,BANKINDIA,Bank of India,144.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+71,MAHABANK,Bank of Maharashtra,,Nifty 500|Nifty Midcap 150
+72,BATAINDIA,Bata India Ltd.,,Nifty 500|Nifty Smallcap 250
+73,BAYERCROP,Bayer Cropscience Ltd.,,Nifty 500|Nifty Smallcap 250
+74,BELRISE,Belrise Industries Ltd.,,Nifty 500|Nifty Smallcap 250
+75,BERGEPAINT,Berger Paints India Ltd.,,Nifty 500|Nifty Midcap 150
+76,BDL,Bharat Dynamics Ltd.,1398.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+77,BEL,Bharat Electronics Ltd.,410.8,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+78,BHARATFORG,Bharat Forge Ltd.,2065.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+79,BHEL,Bharat Heavy Electricals Ltd.,421.7,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+80,BPCL,Bharat Petroleum Corporation Ltd.,319.45,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+81,BHARTIARTL,Bharti Airtel Ltd.,1992.1,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+82,BHARTIHEXA,Bharti Hexacom Ltd.,,Nifty 500|Nifty Midcap 150
+83,BIKAJI,Bikaji Foods International Ltd.,,Nifty 500|Nifty Smallcap 250
+84,GROWW,Billionbrains Garage Ventures Ltd.,196.17,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+85,BIOCON,Biocon Ltd.,417.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+86,BSOFT,Birlasoft Ltd.,,Nifty 500|Nifty Smallcap 250
+87,BLUEDART,Blue Dart Express Ltd.,,Nifty 500|Nifty Smallcap 250
+88,BLUEJET,Blue Jet Healthcare Ltd.,,Nifty 500|Nifty Smallcap 250
+89,BLUESTARCO,Blue Star Ltd.,1508.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+90,BBTC,Bombay Burmah Trading Corporation Ltd.,,Nifty 500|Nifty Smallcap 250
+91,BOSCHLTD,Bosch Ltd.,47100.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+92,FIRSTCRY,Brainbees Solutions Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+93,BRIGADE,Brigade Enterprises Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+94,BRITANNIA,Britannia Industries Ltd.,5558.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+95,MAPMYINDIA,C.E. Info Systems Ltd.,,Nifty 500|Nifty Smallcap 250
+96,CCL,CCL Products (I) Ltd.,,Nifty 500|Nifty Smallcap 250
+97,CESC,CESC Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+98,CGPOWER,CG Power and Industrial Solutions Ltd.,890.15,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+99,CIEINDIA,CIE Automotive India Ltd.,,Nifty 500|Nifty Smallcap 250
+100,CRISIL,CRISIL Ltd.,,Nifty 500|Nifty Midcap 150
+101,CANFINHOME,Can Fin Homes Ltd.,,Nifty 500|Nifty Smallcap 250
+102,CANBK,Canara Bank,131.25,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+103,CANHLIFE,Canara HSBC Life Insurance Company Ltd.,,Nifty 500|Nifty Smallcap 250
+104,CAPLIPOINT,Caplin Point Laboratories Ltd.,,Nifty 500|Nifty Smallcap 250
+105,CGCL,Capri Global Capital Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+106,CARBORUNIV,Carborundum Universal Ltd.,,Nifty 500|Nifty Smallcap 250
+107,CARTRADE,Cartrade Tech Ltd.,,Nifty 500|Nifty Smallcap 250
+108,CASTROLIND,Castrol India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+109,CEATLTD,Ceat Ltd.,,Nifty 500|Nifty Smallcap 250
+110,CEMPRO,Cemindia Projects Ltd.,,Nifty 500|Nifty Smallcap 250
+111,CENTRALBK,Central Bank of India,,Nifty 500|Nifty Smallcap 250
+112,CDSL,Central Depository Services (India) Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+113,CHALET,Chalet Hotels Ltd.,,Nifty 500|Nifty Smallcap 250
+114,CHAMBLFERT,Chambal Fertilizers & Chemicals Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+115,CHENNPETRO,Chennai Petroleum Corporation Ltd.,,Nifty 500|Nifty Smallcap 250
+116,CHOICEIN,Choice International Ltd.,,Nifty 500|Nifty Smallcap 250
+117,CHOLAHLDNG,Cholamandalam Financial Holdings Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+118,CHOLAFIN,Cholamandalam Investment and Finance Company Ltd.,1894.4,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+119,CIPLA,Cipla Ltd.,1450.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+120,CUB,City Union Bank Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+121,CLEAN,Clean Science and Technology Ltd.,,Nifty 500|Nifty Smallcap 250
+122,COALINDIA,Coal India Ltd.,407.1,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+123,COCHINSHIP,Cochin Shipyard Ltd.,1496.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+124,COFORGE,Coforge Ltd.,1812.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+125,COHANCE,Cohance Lifesciences Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+126,COLPAL,Colgate Palmolive (India) Ltd.,1981.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+127,CAMS,Computer Age Management Services Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+128,CONCORDBIO,Concord Biotech Ltd.,,Nifty 500|Nifty Smallcap 250
+129,CONCOR,Container Corporation of India Ltd.,527.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+130,COROMANDEL,Coromandel International Ltd.,2095.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+131,CRAFTSMAN,Craftsman Automation Ltd.,,Nifty 500|Nifty Smallcap 250
+132,CREDITACC,CreditAccess Grameen Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+133,CROMPTON,Crompton Greaves Consumer Electricals Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+134,CUMMINSIND,Cummins India Ltd.,5400.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+135,CYIENT,Cyient Ltd.,,Nifty 500|Nifty Smallcap 250
+136,DCMSHRIRAM,DCM Shriram Ltd.,,Nifty 500|Nifty Smallcap 250
+137,DLF,DLF Ltd.,665.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+138,DOMS,DOMS Industries Ltd.,,Nifty 500|Nifty Smallcap 250
+139,DABUR,Dabur India Ltd.,405.25,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+140,DALBHARAT,Dalmia Bharat Ltd.,,Nifty 500|Nifty Midcap 150
+141,DATAPATTNS,Data Patterns (India) Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+142,DEEPAKFERT,Deepak Fertilisers & Petrochemicals Corp. Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+143,DEEPAKNTR,Deepak Nitrite Ltd.,,Nifty 500|Nifty Smallcap 250
+144,DELHIVERY,Delhivery Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+145,DEVYANI,Devyani International Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+146,DIVISLAB,Divi's Laboratories Ltd.,8477.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+147,DIXON,Dixon Technologies (India) Ltd.,14130.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+148,LALPATHLAB,Dr. Lal Path Labs Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+149,DRREDDY,Dr. Reddy's Laboratories Ltd.,1200.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+150,EIDPARRY,E.I.D. Parry (India) Ltd.,,Nifty 500|Nifty Smallcap 250
+151,EIHOTEL,EIH Ltd.,,Nifty 500|Nifty Smallcap 250
+152,EICHERMOT,Eicher Motors Ltd.,8066.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+153,ELECON,Elecon Engineering Co. Ltd.,,Nifty 500|Nifty Smallcap 250
+154,ELGIEQUIP,Elgi Equipments Ltd.,,Nifty 500|Nifty Smallcap 250
+155,EMAMILTD,Emami Ltd.,,Nifty 500|Nifty Smallcap 250
+156,EMCURE,Emcure Pharmaceuticals Ltd.,,Nifty 500|Nifty Smallcap 250
+157,EMMVEE,Emmvee Photovoltaic Power Ltd.,,Nifty 500|Nifty Smallcap 250
+158,ENDURANCE,Endurance Technologies Ltd.,,Nifty 500|Nifty Midcap 150
+159,ENGINERSIN,Engineers India Ltd.,,Nifty 500|Nifty Smallcap 250
+160,ERIS,Eris Lifesciences Ltd.,,Nifty 500|Nifty Smallcap 250
+161,ESCORTS,Escorts Kubota Ltd.,,Nifty 500|Nifty Midcap 150
+162,ETERNAL,Eternal Ltd.,318.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+163,EXIDEIND,Exide Industries Ltd.,476.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+164,NYKAA,FSN E-Commerce Ventures Ltd.,331.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+165,FEDERALBNK,Federal Bank Ltd.,351.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+166,FACT,Fertilisers and Chemicals Travancore Ltd.,,Nifty 500|Nifty Smallcap 250
+167,FINCABLES,Finolex Cables Ltd.,,Nifty 500|Nifty Smallcap 250
+168,FSL,Firstsource Solutions Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+169,FIVESTAR,Five-Star Business Finance Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+170,FORCEMOT,Force Motors Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+171,FORTIS,Fortis Healthcare Ltd.,929.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+172,GAIL,GAIL (India) Ltd.,174.9,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+173,GVT&D,GE Vernova T&D India Ltd.,4350.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+174,GMRAIRPORT,GMR Airports Ltd.,101.51,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+175,GABRIEL,Gabriel India Ltd.,,Nifty 500|Nifty Smallcap 250
+176,GALLANTT,Gallantt Ispat Ltd.,,Nifty 500|Nifty Smallcap 250
+177,GRSE,Garden Reach Shipbuilders & Engineers Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+178,GICRE,General Insurance Corporation of India,,Nifty 500|Nifty Midcap 150
+179,GILLETTE,Gillette India Ltd.,,Nifty 500|Nifty Smallcap 250
+180,GLAND,Gland Pharma Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+181,GLAXO,Glaxosmithkline Pharmaceuticals Ltd.,,Nifty 500|Nifty Midcap 150
+182,GLENMARK,Glenmark Pharmaceuticals Ltd.,2318.4,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+183,MEDANTA,Global Health Ltd.,,Nifty 500|Nifty Midcap 150
+184,GODIGIT,Go Digit General Insurance Ltd.,,Nifty 500|Nifty Smallcap 250
+185,GPIL,Godawari Power & Ispat Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+186,GODFRYPHLP,Godfrey Phillips India Ltd.,2149.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+187,GODREJCP,Godrej Consumer Products Ltd.,934.3,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+188,GODREJIND,Godrej Industries Ltd.,,Nifty 500|Nifty Midcap 150
+189,GODREJPROP,Godrej Properties Ltd.,1990.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+190,GRANULES,Granules India Ltd.,,Nifty 500|Nifty Smallcap 250
+191,GRAPHITE,Graphite India Ltd.,,Nifty 500|Nifty Smallcap 250
+192,GRASIM,Grasim Industries Ltd.,3248.7,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+193,GRAVITA,Gravita India Ltd.,,Nifty 500|Nifty Smallcap 250
+194,GESHIP,Great Eastern Shipping Co. Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+195,FLUOROCHEM,Gujarat Fluorochemicals Ltd.,,Nifty 500|Nifty Midcap 150
+196,GMDCLTD,Gujarat Mineral Development Corporation Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+197,HEG,H.E.G. Ltd.,,Nifty 500|Nifty Smallcap 250
+198,HBLENGINE,HBL Engineering Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+199,HCLTECH,HCL Technologies Ltd.,1360.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+200,HDBFS,HDB Financial Services Ltd.,,Nifty 500|Nifty Midcap 150
+201,HDFCAMC,HDFC Asset Management Company Ltd.,2485.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+202,HDFCBANK,HDFC Bank Ltd.,727.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+203,HDFCLIFE,HDFC Life Insurance Company Ltd.,535.85,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+204,HFCL,HFCL Ltd.,,Nifty 500|Nifty Smallcap 250
+205,HAVELLS,Havells India Ltd.,1298.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+206,HEROMOTOCO,Hero MotoCorp Ltd.,5790.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+207,HEXT,Hexaware Technologies Ltd.,,Nifty 500|Nifty Midcap 150
+208,HSCL,Himadri Speciality Chemical Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+209,HINDALCO,Hindalco Industries Ltd.,1029.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+210,HAL,Hindustan Aeronautics Ltd.,5029.9,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+211,HINDCOPPER,Hindustan Copper Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+212,HINDPETRO,Hindustan Petroleum Corporation Ltd.,373.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+213,HINDUNILVR,Hindustan Unilever Ltd.,2077.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+214,HINDZINC,Hindustan Zinc Ltd.,561.9,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+215,POWERINDIA,Hitachi Energy India Ltd.,35700.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+216,HOMEFIRST,Home First Finance Company India Ltd.,,Nifty 500|Nifty Smallcap 250
+217,HONASA,Honasa Consumer Ltd.,,Nifty 500|Nifty Smallcap 250
+218,HONAUT,Honeywell Automation India Ltd.,,Nifty 500|Nifty Midcap 150
+219,HUDCO,Housing & Urban Development Corporation Ltd.,189.99,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+220,HYUNDAI,Hyundai Motor India Ltd.,2199.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+221,ICICIBANK,ICICI Bank Ltd.,1417.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+222,ICICIGI,ICICI Lombard General Insurance Company Ltd.,1630.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+223,ICICIAMC,ICICI Prudential Asset Management Company Ltd.,3097.9,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+224,ICICIPRULI,ICICI Prudential Life Insurance Company Ltd.,,Nifty 500|Nifty Midcap 150
+225,IDBI,IDBI Bank Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+226,IDFCFIRSTB,IDFC First Bank Ltd.,85.69,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+227,IFCI,IFCI Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+228,IIFL,IIFL Finance Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+229,IRB,IRB Infrastructure Developers Ltd.,,Nifty 500|Nifty Smallcap 250
+230,IRCON,IRCON International Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+231,ITCHOTELS,ITC Hotels Ltd.,,Nifty 500|Nifty Midcap 150
+232,ITC,ITC Ltd.,278.2,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+233,ITI,ITI Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+234,INDGN,Indegene Ltd.,,Nifty 500|Nifty Smallcap 250
+235,INDIACEM,India Cements Ltd.,,Nifty 500|Nifty Smallcap 250
+236,INDIAMART,Indiamart Intermesh Ltd.,,Nifty 500|Nifty Smallcap 250
+237,INDIANB,Indian Bank,894.95,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+238,IEX,Indian Energy Exchange Ltd.,,Nifty 500|Nifty Smallcap 250
+239,INDHOTEL,Indian Hotels Co. Ltd.,720.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+240,IOC,Indian Oil Corporation Ltd.,139.4,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+241,IOB,Indian Overseas Bank,,Nifty 500|Nifty Smallcap 250
+242,IRCTC,Indian Railway Catering And Tourism Corporation Ltd.,497.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+243,IRFC,Indian Railway Finance Corporation Ltd.,87.57,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+244,IREDA,Indian Renewable Energy Development Agency Ltd.,116.25,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+245,IGL,Indraprastha Gas Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+246,INDUSTOWER,Indus Towers Ltd.,384.35,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+247,INDUSINDBK,IndusInd Bank Ltd.,1020.8,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+248,NAUKRI,Info Edge (India) Ltd.,1343.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+249,INFY,Infosys Ltd.,1169.2,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+250,INOXWIND,Inox Wind Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+251,INTELLECT,Intellect Design Arena Ltd.,,Nifty 500|Nifty Smallcap 250
+252,INDIGO,InterGlobe Aviation Ltd.,5310.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+253,IGIL,International Gemological Institute Ltd.,,Nifty 500|Nifty Smallcap 250
+254,IKS,Inventurus Knowledge Solutions Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+255,IPCALAB,Ipca Laboratories Ltd.,,Nifty 500|Nifty Midcap 150
+256,JKCEMENT,J.K. Cement Ltd.,,Nifty 500|Nifty Midcap 150
+257,JBMA,JBM Auto Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+258,JKTYRE,JK Tyre & Industries Ltd.,,Nifty 500|Nifty Smallcap 250
+259,JMFINANCIL,JM Financial Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+260,JSWCEMENT,JSW Cement Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+261,JSWDULUX,JSW Dulux Ltd.,,Nifty 500|Nifty Smallcap 250
+262,JSWENERGY,JSW Energy Ltd.,560.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+263,JSWINFRA,JSW Infrastructure Ltd.,,Nifty 500|Nifty Midcap 150
+264,JSWSTEEL,JSW Steel Ltd.,1270.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+265,JAINREC,Jain Resource Recycling Ltd.,,Nifty 500|Nifty Smallcap 250
+266,JPPOWER,Jaiprakash Power Ventures Ltd.,,Nifty 500|Nifty Smallcap 250
+267,J&KBANK,Jammu & Kashmir Bank Ltd.,,Nifty 500|Nifty Smallcap 250
+268,JINDALSAW,Jindal Saw Ltd.,,Nifty 500|Nifty Smallcap 250
+269,JSL,Jindal Stainless Ltd.,,Nifty 500|Nifty Midcap 150
+270,JINDALSTEL,Jindal Steel Ltd.,1091.5,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+271,JIOFIN,Jio Financial Services Ltd.,249.05,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+272,JUBLFOOD,Jubilant Foodworks Ltd.,504.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+273,JUBLINGREA,Jubilant Ingrevia Ltd.,,Nifty 500|Nifty Smallcap 250
+274,JUBLPHARMA,Jubilant Pharmova Ltd.,,Nifty 500|Nifty Smallcap 250
+275,JWL,Jupiter Wagons Ltd.,,Nifty 500|Nifty Smallcap 250
+276,JYOTICNC,Jyoti CNC Automation Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+277,KPRMILL,K.P.R. Mill Ltd.,,Nifty 500|Nifty Midcap 150
+278,KEI,KEI Industries Ltd.,5700.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+279,KPITTECH,KPIT Technologies Ltd.,614.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+280,KAJARIACER,Kajaria Ceramics Ltd.,,Nifty 500|Nifty Smallcap 250
+281,KPIL,Kalpataru Projects International Ltd.,,Nifty 500|Nifty Smallcap 250
+282,KALYANKJIL,Kalyan Jewellers India Ltd.,608.25,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+283,KARURVYSYA,Karur Vysya Bank Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+284,KAYNES,Kaynes Technology India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+285,KEC,Kec International Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+286,KFINTECH,Kfin Technologies Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+287,KIRLOSENG,Kirloskar Oil Eng Ltd.,,Nifty 500|Nifty Smallcap 250
+288,KOTAKBANK,Kotak Mahindra Bank Ltd.,391.15,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+289,KIMS,Krishna Institute of Medical Sciences Ltd.,,Nifty 500|Nifty Smallcap 250
+290,LTF,L&T Finance Ltd.,306.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+291,LTTS,L&T Technology Services Ltd.,,Nifty 500|Nifty Midcap 150
+292,LGEINDIA,LG Electronics India Ltd.,1729.7,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+293,LICHSGFIN,LIC Housing Finance Ltd.,500.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+294,LTFOODS,LT Foods Ltd.,,Nifty 500|Nifty Smallcap 250
+295,LTM,LTM Ltd.,4715.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+296,LT,Larsen & Toubro Ltd.,4057.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+297,LATENTVIEW,Latent View Analytics Ltd.,,Nifty 500|Nifty Smallcap 250
+298,LAURUSLABS,Laurus Labs Ltd.,1787.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+299,THELEELA,Leela Palaces Hotels & Resorts Ltd.,,Nifty 500|Nifty Smallcap 250
+300,LEMONTREE,Lemon Tree Hotels Ltd.,,Nifty 500|Nifty Smallcap 250
+301,LENSKART,Lenskart Solutions Ltd.,611.85,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+302,LICI,Life Insurance Corporation of India,,Nifty 500|Nifty Midcap 150
+303,LINDEINDIA,Linde India Ltd.,,Nifty 500|Nifty Midcap 150
+304,LLOYDSME,Lloyds Metals And Energy Ltd.,,Nifty 500|Nifty Midcap 150
+305,LODHA,Lodha Developers Ltd.,1243.9,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+306,LUPIN,Lupin Ltd.,2235.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+307,MMTC,MMTC Ltd.,,Nifty 500|Nifty Smallcap 250
+308,MRF,MRF Ltd.,133490.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+309,MGL,Mahanagar Gas Ltd.,,Nifty 500|Nifty Smallcap 250
+310,M&MFIN,Mahindra & Mahindra Financial Services Ltd.,390.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+311,M&M,Mahindra & Mahindra Ltd.,3428.3,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+312,MANAPPURAM,Manappuram Finance Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+313,MRPL,Mangalore Refinery & Petrochemicals Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+314,MANKIND,Mankind Pharma Ltd.,2425.2,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+315,MARICO,Marico Ltd.,865.2,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+316,MARUTI,Maruti Suzuki India Ltd.,13834.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+317,MFSL,Max Financial Services Ltd.,1538.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+318,MAXHEALTH,Max Healthcare Institute Ltd.,1008.6,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+319,MAZDOCK,Mazagoan Dock Shipbuilders Ltd.,2580.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+320,MEESHO,Meesho Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+321,MINDACORP,Minda Corporation Ltd.,,Nifty 500|Nifty Smallcap 250
+322,MSUMI,Motherson Sumi Wiring India Ltd.,,Nifty 500|Nifty Smallcap 250
+323,MOTILALOFS,Motilal Oswal Financial Services Ltd.,903.7,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+324,MPHASIS,MphasiS Ltd.,2545.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+325,MCX,Multi Commodity Exchange of India Ltd.,2911.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+326,MUTHOOTFIN,Muthoot Finance Ltd.,2842.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+327,NATCOPHARM,NATCO Pharma Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+328,NBCC,NBCC (India) Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+329,NCC,NCC Ltd.,,Nifty 500|Nifty Smallcap 250
+330,NHPC,NHPC Ltd.,76.9,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+331,NLCINDIA,NLC India Ltd.,,Nifty 500|Nifty Midcap 150
+332,NMDC,NMDC Ltd.,84.4,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+333,NSLNISP,NMDC Steel Ltd.,,Nifty 500|Nifty Smallcap 250
+334,NTPCGREEN,NTPC Green Energy Ltd.,,Nifty 500|Nifty Midcap 150
+335,NTPC,NTPC Ltd.,340.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+336,NH,Narayana Hrudayalaya Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+337,NATIONALUM,National Aluminium Co. Ltd.,376.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+338,NAVA,Nava Ltd.,,Nifty 500|Nifty Smallcap 250
+339,NAVINFLUOR,Navin Fluorine International Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+340,NESTLEIND,Nestle India Ltd.,1499.1,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+341,NETWEB,Netweb Technologies India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+342,NEULANDLAB,Neuland Laboratories Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+343,NEWGEN,Newgen Software Technologies Ltd.,,Nifty 500|Nifty Smallcap 250
+344,NAM-INDIA,Nippon Life India Asset Management Ltd.,,Nifty 500|Nifty Midcap 150
+345,NIVABUPA,Niva Bupa Health Insurance Company Ltd.,,Nifty 500|Nifty Smallcap 250
+346,NUVAMA,Nuvama Wealth Management Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+347,NUVOCO,Nuvoco Vistas Corporation Ltd.,,Nifty 500|Nifty Smallcap 250
+348,OBEROIRLTY,Oberoi Realty Ltd.,1846.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+349,ONGC,Oil & Natural Gas Corporation Ltd.,236.4,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+350,OIL,Oil India Ltd.,468.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+351,OLAELEC,Ola Electric Mobility Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+352,OLECTRA,Olectra Greentech Ltd.,,Nifty 500|Nifty Smallcap 250
+353,PAYTM,One 97 Communications Ltd.,1603.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+354,ONESOURCE,Onesource Specialty Pharma Ltd.,,Nifty 500|Nifty Smallcap 250
+355,OFSS,Oracle Financial Services Software Ltd.,11828.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+356,POLICYBZR,PB Fintech Ltd.,1741.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+357,PCBL,PCBL Chemical Ltd.,,Nifty 500|Nifty Smallcap 250
+358,PGEL,PG Electroplast Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+359,PIIND,PI Industries Ltd.,2490.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+360,PNBHOUSING,PNB Housing Finance Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+361,PTCIL,PTC Industries Ltd.,,Nifty 500|Nifty Smallcap 250
+362,PVRINOX,PVR INOX Ltd.,,Nifty 500|Nifty Smallcap 250
+363,PAGEIND,Page Industries Ltd.,36750.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+364,PARADEEP,Paradeep Phosphates Ltd.,,Nifty 500|Nifty Smallcap 250
+365,PATANJALI,Patanjali Foods Ltd.,352.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+366,PERSISTENT,Persistent Systems Ltd.,5580.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+367,PETRONET,Petronet LNG Ltd.,,Nifty 500|Nifty Midcap 150
+368,PFIZER,Pfizer Ltd.,,Nifty 500|Nifty Smallcap 250
+369,PHOENIXLTD,Phoenix Mills Ltd.,1890.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+370,PWL,Physicswallah Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+371,PIDILITIND,Pidilite Industries Ltd.,1693.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+372,PINELABS,Pine Labs Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+373,PIRAMALFIN,Piramal Finance Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+374,PPLPHARMA,Piramal Pharma Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+375,POLYMED,Poly Medicure Ltd.,,Nifty 500|Nifty Smallcap 250
+376,POLYCAB,Polycab India Ltd.,9240.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+377,POONAWALLA,Poonawalla Fincorp Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+378,PFC,Power Finance Corporation Ltd.,376.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+379,POWERGRID,Power Grid Corporation of India Ltd.,266.05,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+380,PREMIERENE,Premier Energies Ltd.,1017.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+381,PRESTIGE,Prestige Estates Projects Ltd.,1592.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+382,PFOCUS,Prime Focus Ltd.,,Nifty 500|Nifty Smallcap 250
+383,PNB,Punjab National Bank,118.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+384,RRKABEL,R R Kabel Ltd.,,Nifty 500|Nifty Smallcap 250
+385,RBLBANK,RBL Bank Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+386,RECLTD,REC Ltd.,335.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+387,RHIM,RHI MAGNESITA INDIA LTD.,,Nifty 500|Nifty Smallcap 250
+388,RITES,RITES Ltd.,,Nifty 500|Nifty Smallcap 250
+389,RADICO,Radico Khaitan Ltd,4650.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+390,RVNL,Rail Vikas Nigam Ltd.,227.35,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+391,RAILTEL,Railtel Corporation Of India Ltd.,,Nifty 500|Nifty Smallcap 250
+392,RAINBOW,Rainbow Childrens Medicare Ltd.,,Nifty 500|Nifty Smallcap 250
+393,RKFORGE,Ramkrishna Forgings Ltd.,,Nifty 500|Nifty Smallcap 250
+394,REDINGTON,Redington Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+395,RELIANCE,Reliance Industries Ltd.,1310.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+396,RPOWER,Reliance Power Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+397,SBFC,SBFC Finance Ltd.,,Nifty 500|Nifty Smallcap 250
+398,SBICARD,SBI Cards and Payment Services Ltd.,633.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+399,SBILIFE,SBI Life Insurance Company Ltd.,1795.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+400,SJVN,SJVN Ltd.,,Nifty 500|Nifty Midcap 150
+401,SRF,SRF Ltd.,2606.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+402,SAGILITY,Sagility Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+403,SAILIFE,Sai Life Sciences Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+404,SAMMAANCAP,Sammaan Capital Ltd.,,Nifty 500|Nifty Smallcap 250
+405,MOTHERSON,Samvardhana Motherson International Ltd.,168.3,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+406,SAPPHIRE,Sapphire Foods India Ltd.,,Nifty 500|Nifty Smallcap 250
+407,SARDAEN,Sarda Energy and Minerals Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+408,SAREGAMA,Saregama India Ltd,,Nifty 500|Nifty Smallcap 250
+409,SCHAEFFLER,Schaeffler India Ltd.,,Nifty 500|Nifty Midcap 150
+410,SCHNEIDER,Schneider Electric Infrastructure Ltd.,,Nifty 500|Nifty Smallcap 250
+411,SCI,Shipping Corporation of India Ltd.,,Nifty 500|Nifty Smallcap 250
+412,SHREECEM,Shree Cement Ltd.,24795.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+413,SHRIRAMFIN,Shriram Finance Ltd.,1122.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+414,SHYAMMETL,Shyam Metalics and Energy Ltd.,,Nifty 500|Nifty Smallcap 250
+415,ENRIN,Siemens Energy India Ltd.,3536.3,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+416,SIEMENS,Siemens Ltd.,3940.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+417,SIGNATURE,Signatureglobal (India) Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+418,SOBHA,Sobha Ltd.,,Nifty 500|Nifty Smallcap 250
+419,SOLARINDS,Solar Industries India Ltd.,19969.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+420,SONACOMS,Sona BLW Precision Forgings Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+421,SONATSOFTW,Sonata Software Ltd.,,Nifty 500|Nifty Smallcap 250
+422,STARHEALTH,Star Health and Allied Insurance Company Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+423,SBIN,State Bank of India,1067.7,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+424,SAIL,Steel Authority of India Ltd.,169.51,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+425,SUMICHEM,Sumitomo Chemical India Ltd.,,Nifty 500|Nifty Smallcap 250
+426,SUNPHARMA,Sun Pharmaceutical Industries Ltd.,1930.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+427,SUNTV,Sun TV Network Ltd.,,Nifty 500|Nifty Smallcap 250
+428,SUNDARMFIN,Sundaram Finance Ltd.,,Nifty 500|Nifty Midcap 150
+429,SUPREMEIND,Supreme Industries Ltd.,3558.9,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+430,SPLPETRO,Supreme Petrochem Ltd.,,Nifty 500|Nifty Smallcap 250
+431,SUZLON,Suzlon Energy Ltd.,47.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+432,SWANCORP,Swan Corp Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+433,SWIGGY,Swiggy Ltd.,276.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+434,SYNGENE,Syngene International Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+435,SYRMA,Syrma SGS Technology Ltd.,,Nifty 500|Nifty Smallcap 250
+436,TBOTEK,TBO Tek Ltd.,,Nifty 500|Nifty Smallcap 250
+437,TVSMOTOR,TVS Motor Company Ltd.,4307.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+438,TATACAP,Tata Capital Ltd.,364.2,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+439,TATACHEM,Tata Chemicals Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+440,TATACOMM,Tata Communications Ltd.,1718.1,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+441,TCS,Tata Consultancy Services Ltd.,2361.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+442,TATACONSUM,Tata Consumer Products Ltd.,1079.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+443,TATAELXSI,Tata Elxsi Ltd.,3772.7,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+444,TATAINVEST,Tata Investment Corporation Ltd.,667.3,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+445,TMCV,Tata Motors Ltd.,474.3,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+446,TMPV,Tata Motors Passenger Vehicles Ltd.,334.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+447,TATAPOWER,Tata Power Co. Ltd.,382.05,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+448,TATASTEEL,Tata Steel Ltd.,183.5,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+449,TATATECH,Tata Technologies Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+450,TTML,Tata Teleservices (Maharashtra) Ltd.,,Nifty 500|Nifty Smallcap 250
+451,TECHM,Tech Mahindra Ltd.,1632.8,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+452,TECHNOE,Techno Electric & Engineering Company Ltd.,,Nifty 500|Nifty Smallcap 250
+453,TEGA,Tega Industries Ltd.,,Nifty 500|Nifty Smallcap 250
+454,TEJASNET,Tejas Networks Ltd.,,Nifty 500|Nifty Smallcap 250
+455,TENNIND,Tenneco Clean Air India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+456,NIACL,The New India Assurance Company Ltd.,,Nifty 500|Nifty Midcap 150
+457,RAMCOCEM,The Ramco Cements Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+458,THERMAX,Thermax Ltd.,,Nifty 500|Nifty Midcap 150
+459,TIMKEN,Timken India Ltd.,,Nifty 500|Nifty Smallcap 250
+460,TITAGARH,Titagarh Rail Systems Ltd.,,Nifty 500|Nifty Smallcap 250
+461,TITAN,Titan Company Ltd.,5056.2,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+462,TORNTPHARM,Torrent Pharmaceuticals Ltd.,4833.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+463,TORNTPOWER,Torrent Power Ltd.,,Nifty 500|Nifty Midcap 150
+464,TARIL,Transformers And Rectifiers (India) Ltd.,,Nifty 500|Nifty Smallcap 250
+465,TRAVELFOOD,Travel Food Services Ltd.,,Nifty 500|Nifty Smallcap 250
+466,TRENT,Trent Ltd.,2978.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+467,TRIDENT,Trident Ltd.,,Nifty 500|Nifty Smallcap 250
+468,TRITURBINE,Triveni Turbine Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+469,TIINDIA,Tube Investments of India Ltd.,2733.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+470,UCOBANK,UCO Bank,,Nifty 500|Nifty Smallcap 250
+471,UNOMINDA,UNO Minda Ltd.,,Nifty 500|Nifty Midcap 150
+472,UPL,UPL Ltd.,563.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+473,UTIAMC,UTI Asset Management Company Ltd.,,Nifty 500|Nifty Smallcap 250
+474,ULTRACEMCO,UltraTech Cement Ltd.,11619.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+475,UNIONBANK,Union Bank of India,187.38,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+476,UBL,United Breweries Ltd.,,Nifty 500|Nifty Midcap 150
+477,UNITDSPR,United Spirits Ltd.,1536.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+478,URBANCO,Urban Company Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+479,USHAMART,Usha Martin Ltd.,,Nifty 500|Nifty Smallcap 250
+480,VTL,Vardhman Textiles Ltd.,,Nifty 500|Nifty Smallcap 250
+481,VBL,Varun Beverages Ltd.,435.0,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+482,VEDL,Vedanta Ltd.,267.5,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+483,VIJAYA,Vijaya Diagnostic Centre Ltd.,,Nifty 500|Nifty Smallcap 250
+484,VMM,Vishal Mega Mart Ltd.,105.2,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+485,IDEA,Vodafone Idea Ltd.,14.11,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+486,VOLTAS,Voltas Ltd.,1320.5,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150
+487,WAAREEENER,Waaree Energies Ltd.,2682.0,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+488,WELCORP,Welspun Corp Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+489,WELSPUNLIV,Welspun Living Ltd.,,Nifty 500|Nifty Smallcap 250
+490,WHIRLPOOL,Whirlpool of India Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+491,WIPRO,Wipro Ltd.,184.0,Nifty 100|Nifty 200|Nifty 50|Nifty 500
+492,WOCKPHARMA,Wockhardt Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250|Nifty Smallcap 50
+493,YESBANK,Yes Bank Ltd.,22.67,Nifty 200|Nifty 500|Nifty Midcap 100|Nifty Midcap 150|Nifty Midcap 50
+494,ZFCVINDIA,ZF Commercial Vehicle Control Systems India Ltd.,,Nifty 500|Nifty Smallcap 250
+495,ZEEL,Zee Entertainment Enterprises Ltd.,,Nifty 500|Nifty Smallcap 250
+496,ZENTEC,Zen Technologies Ltd.,,Nifty 500|Nifty Smallcap 250
+497,ZENSARTECH,Zensar Technolgies Ltd.,,Nifty 500|Nifty Smallcap 100|Nifty Smallcap 250
+498,ZYDUSLIFE,Zydus Lifesciences Ltd.,1135.2,Nifty 100|Nifty 200|Nifty 500|Nifty Next 50
+499,ZYDUSWELL,Zydus Wellness Ltd.,,Nifty 500|Nifty Smallcap 250
+500,ECLERX,eClerx Services Ltd.,,Nifty 500|Nifty Smallcap 250

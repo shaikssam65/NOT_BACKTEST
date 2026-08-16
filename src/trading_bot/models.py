@@ -30,6 +30,7 @@ class UniverseStock:
     market_cap_rank: int
     last_price: float | None = None
     yahoo_ticker: str | None = None
+    indices: list[str] = field(default_factory=list)
 
     @property
     def in_top100(self) -> bool:
