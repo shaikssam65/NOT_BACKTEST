@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -106,7 +108,8 @@ def make_candidate(
 
 @pytest.fixture
 def settings():
-    return load_settings()
+    # Tests never hit the live Kite path.
+    return replace(load_settings(), paper_mode=True)
 
 
 @pytest.fixture
