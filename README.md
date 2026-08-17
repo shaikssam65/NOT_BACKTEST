@@ -1,7 +1,7 @@
 # NSE Simple Bot
 
 Streamlit app for NSE cash equities (Zerodha Kite + Finnhub).  
-`PAPER_MODE=true` by default. **No ChatGPT / OpenAI** in the main flow.
+`PAPER_MODE=false` by default (live Kite orders). Set `PAPER_MODE=true` only if you want simulation.
 
 ## What the app does
 
@@ -126,7 +126,7 @@ For each shortlisted name:
 | **Suggest** | Show names + qty from your capital — **no Kite order** |
 | **Select + Place** | You tick which names; qty is recalculated from capital; then paper or live buy |
 
-**Paper vs live:** `PAPER_MODE=true` (default) only records fills in this app. Use the sidebar toggle **Send real orders to Zerodha** for live Kite CNC orders.
+**Paper vs live:** `PAPER_MODE=false` (default) sends real Kite orders. Set `PAPER_MODE=true` or turn off the sidebar toggle for simulation.
 
 **One-line summary:**  
 *Indexes + price filter → 6 chart rules vote → Kite live price (+ optional Finnhub news) ranks the winners → suggest or buy.*
@@ -140,7 +140,7 @@ For each shortlisted name:
 | `KITE_API_KEY` / `KITE_API_SECRET` / `KITE_ACCESS_TOKEN` | Kite login, quotes, holdings, orders |
 | `KITE_REDIRECT_URL` | OAuth redirect |
 | `FINNHUB_API_KEY` | Live company + market news |
-| `PAPER_MODE` | `true` = paper fills (default) |
+| `PAPER_MODE` | `false` = live Kite orders (default). `true` = paper simulation |
 
 Get a free Finnhub key: https://finnhub.io/
 

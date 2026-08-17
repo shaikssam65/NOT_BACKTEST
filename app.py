@@ -43,7 +43,7 @@ def _apply_streamlit_secrets() -> None:
         text = str(value).strip()
         if text:
             os.environ[key] = text
-    os.environ.setdefault("PAPER_MODE", "true")
+    os.environ.setdefault("PAPER_MODE", "false")
     # Default cloud redirect if not set in secrets yet.
     os.environ.setdefault("KITE_REDIRECT_URL", "https://backtestind.streamlit.app/")
     if os.getenv("STREAMLIT_RUNTIME_ENV", "").lower() == "cloud" or "STREAMLIT_SHARING_MODE" in os.environ:

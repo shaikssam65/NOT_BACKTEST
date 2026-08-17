@@ -172,7 +172,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
         raw = loaded
 
     # Live mode is env-gated. YAML cannot silently turn paper trading off.
-    paper_mode = _as_bool(os.getenv("PAPER_MODE"), default=True)
+    paper_mode = _as_bool(os.getenv("PAPER_MODE"), default=False)
 
     db_env = os.getenv("DATABASE_PATH")
     database_path = Path(db_env) if db_env else ROOT / "data" / "db" / "trading.db"

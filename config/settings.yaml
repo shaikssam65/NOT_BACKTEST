@@ -1,6 +1,6 @@
 # All tunable parameters live here — nothing important should be hardcoded.
-# PAPER_MODE is gated by the PAPER_MODE env var (defaults to true).
-# Setting paper_mode: false in this file is NOT enough to enable live orders.
+# PAPER_MODE is gated by the PAPER_MODE env var (defaults to false / live).
+# Setting paper_mode in this YAML file does not control live vs paper.
 
 paper_mode: true
 capital: 100000.0

@@ -4,16 +4,16 @@ from trading_bot.config import load_settings
 from trading_bot.universe import get_universe, load_seed_stocks
 
 
-def test_paper_mode_defaults_true(monkeypatch):
+def test_paper_mode_defaults_false(monkeypatch):
     monkeypatch.delenv("PAPER_MODE", raising=False)
     settings = load_settings()
-    assert settings.paper_mode is True
-
-
-def test_paper_mode_false_only_when_explicit(monkeypatch):
-    monkeypatch.setenv("PAPER_MODE", "false")
-    settings = load_settings()
     assert settings.paper_mode is False
+
+
+def test_paper_mode_true_only_when_explicit(monkeypatch):
+    monkeypatch.setenv("PAPER_MODE", "true")
+    settings = load_settings()
+    assert settings.paper_mode is True
 
 
 def test_seed_universe_is_total_market():
