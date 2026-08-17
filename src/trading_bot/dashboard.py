@@ -395,10 +395,11 @@ def main() -> None:
     with col_a:
         capital = st.number_input(
             "Capital to invest (₹)",
-            min_value=5_000.0,
-            max_value=50_000_000.0,
-            value=float(settings.capital),
-            step=5_000.0,
+            min_value=1_000.0,
+            max_value=50_000.0,
+            value=min(50_000.0, max(1_000.0, float(settings.capital))),
+            step=500.0,
+            help="₹1,000 – ₹50,000. Share qty = capital ÷ selected stocks ÷ price.",
         )
     with col_b:
         pick_n = st.number_input(

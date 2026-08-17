@@ -727,8 +727,10 @@ def research_and_buy(
     as_of = as_of or date.today()
     pick_count = max(1, min(50, int(pick_count)))
     capital = float(capital)
-    if capital < 5_000:
-        raise ValueError("Capital should be at least ₹5,000")
+    if capital < 1_000:
+        raise ValueError("Capital should be at least ₹1,000")
+    if capital > 50_000:
+        raise ValueError("Capital should be at most ₹50,000")
     bands = list(price_bands) if price_bands else [b[0] for b in PRICE_BANDS]
     indexes = list(index_filters) if index_filters else None
     mode = "paper" if settings.paper_mode else "live"

@@ -185,7 +185,7 @@ def load_settings(config_path: Path | None = None) -> Settings:
 
     return Settings(
         paper_mode=paper_mode,
-        capital=float(raw.get("capital", 100000.0)),
+        capital=float(raw.get("capital", 10000.0)),
         database_path=database_path,
         openai_api_key=_nonempty(os.getenv("OPENAI_API_KEY")),
         finnhub_api_key=_nonempty(os.getenv("FINNHUB_API_KEY")),

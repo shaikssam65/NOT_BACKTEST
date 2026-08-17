@@ -3,7 +3,7 @@
 # Setting paper_mode in this YAML file does not control live vs paper.
 
 paper_mode: true
-capital: 100000.0
+capital: 10000.0
 
 selection:
   pick_count_min: 3
