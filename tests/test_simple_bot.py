@@ -96,14 +96,14 @@ def test_research_and_buy_runs(db, settings):
         db,
         settings,
         provider,
-        capital=60_000.0,
+        capital=50_000.0,
         pick_count=2,
         as_of=date(2024, 5, 15),
         place_orders=False,
         price_bands=["50-100", "100-200"],
     )
     assert result["ok"] is True
-    assert result["capital"] == 60_000.0
+    assert result["capital"] == 50_000.0
     assert result["place_orders"] is False
     assert result["orders"] == []
     assert "orders" in result
