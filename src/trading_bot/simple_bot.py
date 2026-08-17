@@ -827,7 +827,7 @@ def research_and_buy(
             }
         ]
     picks = rank_with_finnhub_and_kite(
-        shortlist, settings, pick_count=max(pick_count, 8), progress=log
+        shortlist, settings, pick_count=pick_count, progress=log
     )
     # Re-check live LTP against bands (quote may differ from last close).
     filtered_picks = []
@@ -837,17 +837,14 @@ def research_and_buy(
             filtered_picks.append(p)
         else:
             log(f"  drop {p.get('symbol')} — live ₹{px:.2f} outside selected bands")
-    picks = filtered_picks
+    picks = filtered_picks[:pick_count]
     requested = pick_count
     fit_n = affordable_pick_count(picks, capital, requested)
-    if fit_n and fit_n < len(picks):
-        log(
-            f"  Capital ₹{capital:,.0f} affords {fit_n} name(s) at ≥1 share "
-            f"(you asked {requested}; extra suggestions kept for you to pick)"
-        )
-    # Keep extra names so user can choose, but mark recommended count.
-    recommended_n = fit_n or min(requested, len(picks))
-    log(f"Step 3 — Suggestions: {[p['symbol'] for p in picks] or ['none']} · recommended {recommended_n}")
+    # Never show more names than the user asked for.
+    show_n = min(requested, fit_n or requested, len(picks))
+    picks = picks[:show_n]
+    recommended_n = show_n
+    log(f"Step 3 — Suggestions ({recommended_n}): {[p['symbol'] for p in picks] or ['none']}")
 
     if not picks:
         sample = ", ".join(
@@ -872,6 +869,7 @@ def research_and_buy(
             "universe": UNIVERSE_LABEL,
             "universe_size": len(universe),
             "capital": capital,
+            "pick_count": pick_count,
             "scanned": scanned,
             "in_band": in_band[:20],
             "market_news": market_news,
@@ -884,21 +882,19 @@ def research_and_buy(
             "note": note,
         }
 
-    # Size qty from capital split across the *recommended* names (user can re-split on select).
-    display = picks[: max(recommended_n, min(len(picks), requested))]
-    plans = plan_buys_from_capital(display, capital)
+    plans = plan_buys_from_capital(picks, capital)
     leftover = 0.0
     if plans:
         leftover = round(capital - sum(float(p["invest_₹"]) for p in plans), 2)
     log(
-        f"Step 4 — Suggest only · {len(plans)} names · qty from ₹{capital:,.0f} "
-        f"split equally (leftover cash ₹{leftover:,.0f})"
+        f"Step 4 — Suggest {len(plans)} name(s) · qty from ₹{capital:,.0f} "
+        f"(leftover cash ₹{leftover:,.0f})"
     )
 
     note = (
-        f"Suggestion only — no Kite order sent. "
-        f"₹{capital:,.0f} split across {len(plans)} name(s) → "
-        f"qty = floor(slice ÷ price). Select which to buy below."
+        f"Suggested exactly {len(plans)} stock(s) as requested. "
+        f"₹{capital:,.0f} → qty = floor((capital ÷ {len(plans)}) ÷ price). "
+        "Next: select which to buy, then place order."
         + (" PAPER_MODE is ON — live Zerodha is blocked until you turn it off." if settings.paper_mode else "")
     )
 
@@ -911,6 +907,7 @@ def research_and_buy(
         "universe": UNIVERSE_LABEL,
         "universe_size": len(universe),
         "capital": capital,
+        "pick_count": pick_count,
         "slice_capital": round(capital / max(len(plans), 1), 2),
         "recommended_n": recommended_n,
         "leftover": leftover,

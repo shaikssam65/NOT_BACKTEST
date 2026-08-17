@@ -364,9 +364,8 @@ def main() -> None:
     st.markdown("---")
     st.subheader("2 · Research")
     st.caption(
-        "Pick indexes + price range, then **Suggest**. Choose which names to buy. "
-        "Share qty = your capital ÷ number selected ÷ price (whole shares). "
-        "Nothing is sent to Kite until you click **Place orders for selected**."
+        "Step A: Suggest → Step B: select stocks → Step C: place order. "
+        "How many stocks = exact count suggested. Qty = capital ÷ selected ÷ price."
     )
     index_filters = st.multiselect(
         "NSE indexes — pick any / multiple",
@@ -403,15 +402,15 @@ def main() -> None:
         )
     with col_b:
         pick_n = st.number_input(
-            "Max names to suggest",
+            "How many stocks to suggest",
             min_value=1,
             max_value=50,
             value=3,
             step=1,
-            help="Upper limit. Actual count is cut to what your capital can buy (≥1 share each).",
+            help="Exact number of suggestions (e.g. 1 → only 1 stock).",
         )
 
-    if st.button("Suggest stocks (no order)", type="primary", use_container_width=True):
+    if st.button("1 · Suggest stocks", type="primary", use_container_width=True):
         if not index_filters:
             st.error("Select at least one NSE index.")
         elif not price_bands:
@@ -445,23 +444,21 @@ def main() -> None:
     if buy_report:
         if settings.paper_mode:
             st.warning(
-                "PAPER mode is on — even if you place orders next, they will **not** hit Zerodha. "
+                "PAPER mode is on — place-order will **not** hit Zerodha. "
                 "Turn on **Send real orders to Zerodha** in the sidebar for live buys."
             )
         st.info(buy_report.get("note") or "")
         bits = []
-        if buy_report.get("index_filters"):
-            bits.append("Indexes: " + ", ".join(buy_report["index_filters"]))
+        if buy_report.get("pick_count") is not None:
+            bits.append(f"Asked for {buy_report['pick_count']}")
+        if buy_report.get("picks") is not None:
+            bits.append(f"Showing {len(buy_report['picks'])}")
         if buy_report.get("price_bands"):
             bits.append("Bands: " + ", ".join(buy_report["price_bands"]))
-        if buy_report.get("universe_size"):
-            bits.append(f"Pool {buy_report['universe_size']}")
-        if buy_report.get("recommended_n"):
-            bits.append(f"Capital fits {buy_report['recommended_n']} name(s) at ≥1 share")
         if bits:
             st.caption(" · ".join(bits))
         if buy_report.get("picks"):
-            st.markdown("**Suggested picks** (qty = capital split equally ÷ price)")
+            st.markdown(f"**Suggested ({len(buy_report['picks'])})**")
             show = []
             for p in buy_report["picks"]:
                 show.append(
@@ -497,15 +494,15 @@ def main() -> None:
                     for n in buy_report["market_news"]:
                         st.write(f"- {n.get('headline')}")
 
-            st.markdown("**Select which to buy**")
+            st.markdown("---")
+            st.subheader("3 · Select & place order")
+            st.caption("Tick any of the suggested stocks, then place the order.")
             pick_syms = [str(p.get("symbol")) for p in buy_report["picks"] if p.get("symbol")]
-            rec_n = int(buy_report.get("recommended_n") or len(pick_syms))
-            default_syms = pick_syms[:rec_n]
             selected = st.multiselect(
-                "Stocks to order",
+                "Select stocks to buy",
                 options=pick_syms,
-                default=default_syms,
-                help="Capital is split equally across whatever you select here. Qty = floor(slice ÷ price).",
+                default=list(pick_syms),
+                help="Only suggested names appear here. Capital is split across your selection.",
             )
             if selected:
                 chosen = [p for p in buy_report["picks"] if p.get("symbol") in selected]
@@ -529,12 +526,12 @@ def main() -> None:
                 leftover = round(float(capital) - sum(float(p["invest_₹"]) for p in sized), 2)
                 st.caption(
                     f"Qty from capital ₹{capital:,.0f} ÷ {len(sized)} name(s). "
-                    f"Unspent (because shares are whole) ≈ ₹{leftover:,.0f}."
+                    f"Unspent ≈ ₹{leftover:,.0f}."
                 )
                 btn_label = (
-                    "Place LIVE Kite orders for selected"
+                    "2 · Place LIVE order for selected"
                     if not settings.paper_mode
-                    else "Simulate paper buys for selected (not sent to Zerodha)"
+                    else "2 · Place paper order for selected (not Zerodha)"
                 )
                 if st.button(btn_label, type="primary", use_container_width=True):
                     if settings.paper_mode:
@@ -559,7 +556,7 @@ def main() -> None:
                         status.update(label="Failed", state="error")
                         st.error(str(exc))
             else:
-                st.caption("Select one or more symbols to size qty and place orders.")
+                st.warning("Select at least one suggested stock to place an order.")
         elif buy_report.get("in_band"):
             st.markdown("**In your price bands (did not become final picks)**")
             st.dataframe(
