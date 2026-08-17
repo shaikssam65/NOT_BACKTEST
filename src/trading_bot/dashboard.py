@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from dataclasses import replace
+
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
@@ -28,6 +30,8 @@ from trading_bot.simple_bot import (
     fetch_kite_quote,
     manual_buy,
     manual_sell_holdings,
+    place_selected_buys,
+    plan_buys_from_capital,
     research_and_buy,
 )
 from trading_bot.universe import (
@@ -87,10 +91,16 @@ def _setup_sidebar(settings) -> None:
     with st.sidebar:
         st.markdown("### Setup")
         st.caption("Same secrets as before (.env / Streamlit Secrets).")
-        if settings.paper_mode:
-            st.success("PAPER_MODE on — simulated fills")
+        live = st.toggle(
+            "Send real orders to Zerodha",
+            value=not settings.paper_mode,
+            key="live_orders",
+            help="Off = paper simulation (app book only). On = live CNC market orders on Kite.",
+        )
+        if live:
+            st.error("LIVE — buys/sells go to your Kite account")
         else:
-            st.error("PAPER_MODE off — real Zerodha orders")
+            st.warning("PAPER — nothing is sent to Zerodha. This is why ‘orders placed’ did not hit your account.")
 
         kite = profile_status(settings)
         if kite.get("ok"):
@@ -143,12 +153,14 @@ def main() -> None:
     _consume_kite_callback(load_settings())
     settings, conn, provider = _boot()
     _setup_sidebar(settings)
+    live = bool(st.session_state.get("live_orders"))
+    settings = replace(settings, paper_mode=not live)
 
     st.title("NSE Simple Bot")
     st.markdown(
         """
 1. **Auto-sell** ≥30% · **Manual sell** · **Manual buy**  
-2. **Research** — pick **Nifty indexes** + price ranges + **how many stocks** → Suggest only or Place buy orders  
+2. **Research** — suggest → **you pick** which names to buy (qty from your capital)  
    (rules + Finnhub + Kite; no ChatGPT)
 """
     )
@@ -350,11 +362,11 @@ def main() -> None:
         st.dataframe(pd.DataFrame([show]), hide_index=True, use_container_width=True)
 
     st.markdown("---")
-    st.subheader("2 · Research 2–3 stocks")
+    st.subheader("2 · Research")
     st.caption(
-        "Universe: **Nifty indexes** (union ≈ Total Market ~750). Pick indexes + price ranges, "
-        "then Suggest only or Place buy orders. For smaller names try Microcap 250 / "
-        "Smallcap Momentum Quality 100 / Quality 50."
+        "Pick indexes + price range, then **Suggest**. Choose which names to buy. "
+        "Share qty = your capital ÷ number selected ÷ price (whole shares). "
+        "Nothing is sent to Kite until you click **Place orders for selected**."
     )
     index_filters = st.multiselect(
         "NSE indexes — pick any / multiple",
@@ -390,55 +402,51 @@ def main() -> None:
         )
     with col_b:
         pick_n = st.number_input(
-            "How many stocks",
+            "Max names to suggest",
             min_value=1,
             max_value=50,
             value=3,
             step=1,
-            help="Any number from 1 to 50. Capital is split equally across that many picks.",
+            help="Upper limit. Actual count is cut to what your capital can buy (≥1 share each).",
         )
 
-    def _run_research(*, place_orders: bool) -> None:
+    if st.button("Suggest stocks (no order)", type="primary", use_container_width=True):
         if not index_filters:
             st.error("Select at least one NSE index.")
-            return
-        if not price_bands:
+        elif not price_bands:
             st.error("Select at least one price range.")
-            return
-        label = "Suggesting…" if not place_orders else "Researching & buying…"
-        status = st.status(label, expanded=True)
-        try:
+        else:
+            status = st.status("Suggesting…", expanded=True)
+            try:
 
-            def _p(msg: str) -> None:
-                status.write(msg)
+                def _p(msg: str) -> None:
+                    status.write(msg)
 
-            result = research_and_buy(
-                conn,
-                settings,
-                provider,
-                capital=float(capital),
-                pick_count=int(pick_n),
-                progress=_p,
-                place_orders=place_orders,
-                price_bands=list(price_bands),
-                index_filters=list(index_filters),
-            )
-            st.session_state["buy_report"] = result
-            status.update(label="Done", state="complete")
-        except Exception as exc:
-            status.update(label="Failed", state="error")
-            st.error(str(exc))
-
-    b1, b2 = st.columns(2)
-    with b1:
-        if st.button("Suggest only (no buy)", use_container_width=True):
-            _run_research(place_orders=False)
-    with b2:
-        if st.button("Place buy orders", type="primary", use_container_width=True):
-            _run_research(place_orders=True)
+                result = research_and_buy(
+                    conn,
+                    settings,
+                    provider,
+                    capital=float(capital),
+                    pick_count=int(pick_n),
+                    progress=_p,
+                    place_orders=False,
+                    price_bands=list(price_bands),
+                    index_filters=list(index_filters),
+                )
+                st.session_state["buy_report"] = result
+                st.session_state.pop("selected_buy_report", None)
+                status.update(label="Done", state="complete")
+            except Exception as exc:
+                status.update(label="Failed", state="error")
+                st.error(str(exc))
 
     buy_report = st.session_state.get("buy_report")
     if buy_report:
+        if settings.paper_mode:
+            st.warning(
+                "PAPER mode is on — even if you place orders next, they will **not** hit Zerodha. "
+                "Turn on **Send real orders to Zerodha** in the sidebar for live buys."
+            )
         st.info(buy_report.get("note") or "")
         bits = []
         if buy_report.get("index_filters"):
@@ -447,11 +455,12 @@ def main() -> None:
             bits.append("Bands: " + ", ".join(buy_report["price_bands"]))
         if buy_report.get("universe_size"):
             bits.append(f"Pool {buy_report['universe_size']}")
+        if buy_report.get("recommended_n"):
+            bits.append(f"Capital fits {buy_report['recommended_n']} name(s) at ≥1 share")
         if bits:
             st.caption(" · ".join(bits))
         if buy_report.get("picks"):
-            title = "**Suggested picks**" if not buy_report.get("place_orders") else "**Picks**"
-            st.markdown(title)
+            st.markdown("**Suggested picks** (qty = capital split equally ÷ price)")
             show = []
             for p in buy_report["picks"]:
                 show.append(
@@ -459,12 +468,12 @@ def main() -> None:
                         "symbol": p.get("symbol"),
                         "price": p.get("price"),
                         "qty": p.get("qty"),
+                        "invest_₹": p.get("invest_₹"),
                         "slice_₹": p.get("slice_capital"),
                         "stop": p.get("stop"),
                         "target": p.get("target"),
                         "rules": p.get("rule_buys"),
                         "why": p.get("pick_note"),
-                        "source": p.get("data_source"),
                     }
                 )
             st.dataframe(pd.DataFrame(show), hide_index=True, use_container_width=True)
@@ -486,6 +495,70 @@ def main() -> None:
                 with st.expander("Finnhub market news"):
                     for n in buy_report["market_news"]:
                         st.write(f"- {n.get('headline')}")
+
+            st.markdown("**Select which to buy**")
+            pick_syms = [str(p.get("symbol")) for p in buy_report["picks"] if p.get("symbol")]
+            rec_n = int(buy_report.get("recommended_n") or len(pick_syms))
+            default_syms = pick_syms[:rec_n]
+            selected = st.multiselect(
+                "Stocks to order",
+                options=pick_syms,
+                default=default_syms,
+                help="Capital is split equally across whatever you select here. Qty = floor(slice ÷ price).",
+            )
+            if selected:
+                chosen = [p for p in buy_report["picks"] if p.get("symbol") in selected]
+                sized = plan_buys_from_capital(chosen, float(capital))
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                "symbol": p.get("symbol"),
+                                "price": p.get("price"),
+                                "qty": p.get("qty"),
+                                "invest_₹": p.get("invest_₹"),
+                                "slice_₹": p.get("slice_capital"),
+                            }
+                            for p in sized
+                        ]
+                    ),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+                leftover = round(float(capital) - sum(float(p["invest_₹"]) for p in sized), 2)
+                st.caption(
+                    f"Qty from capital ₹{capital:,.0f} ÷ {len(sized)} name(s). "
+                    f"Unspent (because shares are whole) ≈ ₹{leftover:,.0f}."
+                )
+                btn_label = (
+                    "Place LIVE Kite orders for selected"
+                    if not settings.paper_mode
+                    else "Simulate paper buys for selected (not sent to Zerodha)"
+                )
+                if st.button(btn_label, type="primary", use_container_width=True):
+                    if settings.paper_mode:
+                        st.info("Paper run — Kite account will not change.")
+                    status = st.status("Placing selected buys…", expanded=True)
+                    try:
+
+                        def _p2(msg: str) -> None:
+                            status.write(msg)
+
+                        placed = place_selected_buys(
+                            conn,
+                            settings,
+                            buy_report["picks"],
+                            selected,
+                            capital=float(capital),
+                            progress=_p2,
+                        )
+                        st.session_state["selected_buy_report"] = placed
+                        status.update(label="Done", state="complete")
+                    except Exception as exc:
+                        status.update(label="Failed", state="error")
+                        st.error(str(exc))
+            else:
+                st.caption("Select one or more symbols to size qty and place orders.")
         elif buy_report.get("in_band"):
             st.markdown("**In your price bands (did not become final picks)**")
             st.dataframe(
@@ -496,9 +569,17 @@ def main() -> None:
                 hide_index=True,
                 use_container_width=True,
             )
-        if buy_report.get("orders"):
-            st.markdown("**Orders**")
-            st.dataframe(pd.DataFrame(buy_report["orders"]), hide_index=True, use_container_width=True)
+
+    selected_buy_report = st.session_state.get("selected_buy_report")
+    if selected_buy_report:
+        st.info(selected_buy_report.get("note") or "")
+        if selected_buy_report.get("orders"):
+            st.markdown("**Order result**")
+            st.dataframe(
+                pd.DataFrame(selected_buy_report["orders"]),
+                hide_index=True,
+                use_container_width=True,
+            )
 
     st.markdown("---")
     st.subheader("Bot book (paper/live positions from this app)")

@@ -51,6 +51,125 @@ def _noop(_: str) -> None:
     return None
 
 
+def shares_for_capital(price: float, slice_capital: float) -> int:
+    """Whole shares that fit in this slice of capital (never random)."""
+    if price <= 0 or slice_capital <= 0:
+        return 0
+    return max(0, math.floor(float(slice_capital) / float(price)))
+
+
+def affordable_pick_count(picks: list[dict[str, Any]], capital: float, requested: int) -> int:
+    """Largest n ≤ requested where each of the first n names gets at least 1 share."""
+    if not picks or capital <= 0:
+        return 0
+    n = max(1, min(int(requested), len(picks)))
+    while n > 1:
+        slice_cap = capital / n
+        if all(shares_for_capital(float(p.get("price") or 0), slice_cap) >= 1 for p in picks[:n]):
+            return n
+        n -= 1
+    return 1
+
+
+def plan_buys_from_capital(
+    picks: list[dict[str, Any]],
+    capital: float,
+) -> list[dict[str, Any]]:
+    """Split capital equally; qty = floor(slice / live price)."""
+    if not picks:
+        return []
+    slice_cap = float(capital) / len(picks)
+    plans: list[dict[str, Any]] = []
+    for p in picks:
+        price = float(p.get("price") or 0)
+        qty = shares_for_capital(price, slice_cap)
+        stop = price * (1 - STOP_PCT / 100.0) if price > 0 else 0.0
+        target = price * (1 + TARGET_PCT / 100.0) if price > 0 else 0.0
+        plans.append(
+            {
+                **p,
+                "price": round(price, 2),
+                "qty": qty,
+                "slice_capital": round(slice_cap, 2),
+                "invest_₹": round(qty * price, 2),
+                "stop": round(stop, 2),
+                "target": round(target, 2),
+            }
+        )
+    return plans
+
+
+def place_selected_buys(
+    conn,
+    settings: Settings,
+    picks: list[dict[str, Any]],
+    symbols: list[str],
+    *,
+    capital: float,
+    progress: ProgressCb | None = None,
+) -> dict[str, Any]:
+    """Place buys only for user-selected suggestion symbols. Qty from capital split."""
+    log = progress or _noop
+    mode = "paper" if settings.paper_mode else "live"
+    wanted = {str(s).upper() for s in symbols if s}
+    chosen = [p for p in picks if str(p.get("symbol") or "").upper() in wanted]
+    if not chosen:
+        return {
+            "ok": False,
+            "mode": mode,
+            "orders": [],
+            "note": "Select at least one suggested stock to buy.",
+        }
+    plans = plan_buys_from_capital(chosen, float(capital))
+    orders: list[dict[str, Any]] = []
+    log(
+        f"Buy selected {len(plans)} · ₹{capital:,.0f} split → "
+        f"₹{plans[0]['slice_capital']:,.0f} each · mode={mode}"
+    )
+    if settings.paper_mode:
+        log("PAPER MODE — no order is sent to your Zerodha account.")
+
+    for plan in plans:
+        qty = int(plan["qty"])
+        if qty <= 0:
+            orders.append(
+                {
+                    **plan,
+                    "ok": False,
+                    "reason": "qty_zero — price higher than your capital slice",
+                }
+            )
+            log(f"  SKIP {plan['symbol']}: cannot afford 1 share in this slice")
+            continue
+        result = place_buy(
+            conn,
+            settings,
+            symbol=plan["symbol"],
+            entry_price=float(plan["price"]),
+            stop_loss=float(plan["stop"]),
+            target=float(plan["target"]),
+            strategy="simple_bot",
+            source="manual",
+            available_capital=float(plan["slice_capital"]),
+            qty=qty,
+        )
+        orders.append({**plan, **result})
+        if result.get("ok"):
+            log(f"  BUY {plan['symbol']} × {result.get('qty')} @ {plan['price']}")
+        else:
+            log(f"  REJECTED {plan['symbol']}: {result.get('reason')}")
+
+    ok_n = sum(1 for o in orders if o.get("ok"))
+    if settings.paper_mode:
+        note = (
+            f"PAPER simulation only — {ok_n} fill(s) recorded in this app, "
+            "NOT on your Zerodha account. Turn PAPER_MODE off (sidebar) for live orders."
+        )
+    else:
+        note = f"LIVE — sent {ok_n} buy order(s) to Kite."
+    return {"ok": True, "mode": mode, "orders": orders, "picks": plans, "note": note}
+
+
 def price_in_selected_bands(price: float, band_labels: list[str] | None) -> bool:
     """True if price falls in any selected band. Empty/None → all bands allowed."""
     if not band_labels:
@@ -588,7 +707,7 @@ def research_and_buy(
     pick_count: int = DEFAULT_PICKS,
     as_of: date | None = None,
     progress: ProgressCb | None = None,
-    place_orders: bool = True,
+    place_orders: bool = False,
     price_bands: list[str] | None = None,
     index_filters: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -702,7 +821,7 @@ def research_and_buy(
             }
         ]
     picks = rank_with_finnhub_and_kite(
-        shortlist, settings, pick_count=pick_count, progress=log
+        shortlist, settings, pick_count=max(pick_count, 8), progress=log
     )
     # Re-check live LTP against bands (quote may differ from last close).
     filtered_picks = []
@@ -713,7 +832,16 @@ def research_and_buy(
         else:
             log(f"  drop {p.get('symbol')} — live ₹{px:.2f} outside selected bands")
     picks = filtered_picks
-    log(f"Step 3 — Final picks: {[p['symbol'] for p in picks] or ['none']}")
+    requested = pick_count
+    fit_n = affordable_pick_count(picks, capital, requested)
+    if fit_n and fit_n < len(picks):
+        log(
+            f"  Capital ₹{capital:,.0f} affords {fit_n} name(s) at ≥1 share "
+            f"(you asked {requested}; extra suggestions kept for you to pick)"
+        )
+    # Keep extra names so user can choose, but mark recommended count.
+    recommended_n = fit_n or min(requested, len(picks))
+    log(f"Step 3 — Suggestions: {[p['symbol'] for p in picks] or ['none']} · recommended {recommended_n}")
 
     if not picks:
         sample = ", ".join(
@@ -746,86 +874,44 @@ def research_and_buy(
             ],
             "picks": [],
             "orders": [],
+            "recommended_n": 0,
             "note": note,
         }
 
-    slice_cap = capital / len(picks)
-    orders: list[dict[str, Any]] = []
-    plans: list[dict[str, Any]] = []
-    if place_orders:
-        log(f"Step 4 — Split ₹{capital:,.0f} → ₹{slice_cap:,.0f} each · place buys…")
-    else:
-        log(f"Step 4 — Suggest only · ₹{slice_cap:,.0f} per name (no orders)…")
+    # Size qty from capital split across the *recommended* names (user can re-split on select).
+    display = picks[: max(recommended_n, min(len(picks), requested))]
+    plans = plan_buys_from_capital(display, capital)
+    leftover = 0.0
+    if plans:
+        leftover = round(capital - sum(float(p["invest_₹"]) for p in plans), 2)
+    log(
+        f"Step 4 — Suggest only · {len(plans)} names · qty from ₹{capital:,.0f} "
+        f"split equally (leftover cash ₹{leftover:,.0f})"
+    )
 
-    for p in picks:
-        price = float(p["price"])
-        stop = price * (1 - STOP_PCT / 100.0)
-        target = price * (1 + TARGET_PCT / 100.0)
-        qty = max(0, math.floor(slice_cap / price))
-        plan = {
-            "symbol": p["symbol"],
-            "name": p.get("name"),
-            "price": price,
-            "qty": qty,
-            "slice_capital": round(slice_cap, 2),
-            "stop": round(stop, 2),
-            "target": round(target, 2),
-            "rule_buys": p.get("rule_buys"),
-            "pick_note": p.get("pick_note"),
-            "news": p.get("news") or [],
-            "kite_quote": p.get("kite_quote"),
-            "news_sentiment": p.get("news_sentiment"),
-            "data_source": p.get("data_source"),
-        }
-        plans.append(plan)
-        if not place_orders:
-            continue
-        if qty <= 0:
-            orders.append({"symbol": p["symbol"], "ok": False, "reason": "qty_zero"})
-            continue
-        result = place_buy(
-            conn,
-            settings,
-            symbol=p["symbol"],
-            entry_price=price,
-            stop_loss=stop,
-            target=target,
-            strategy="simple_bot",
-            source="ai_selected",
-            available_capital=slice_cap,
-            qty=qty,
-        )
-        orders.append({"symbol": p["symbol"], **plan, **result})
-        if result.get("ok"):
-            log(f"  BUY {p['symbol']} × {result.get('qty')} @ {price}")
-        else:
-            log(f"  REJECTED {p['symbol']}: {result.get('reason')}")
-
-    if place_orders:
-        note = (
-            "Rules + Finnhub news when available; else Kite live quotes. No ChatGPT. "
-            + ("PAPER fills only." if settings.paper_mode else "LIVE orders sent.")
-        )
-    else:
-        note = (
-            "Suggestion only — no orders placed. Review picks, then use "
-            "“Place buy orders” if you want to buy."
-        )
+    note = (
+        f"Suggestion only — no Kite order sent. "
+        f"₹{capital:,.0f} split across {len(plans)} name(s) → "
+        f"qty = floor(slice ÷ price). Select which to buy below."
+        + (" PAPER_MODE is ON — live Zerodha is blocked until you turn it off." if settings.paper_mode else "")
+    )
 
     return {
         "ok": True,
         "mode": mode,
-        "place_orders": place_orders,
+        "place_orders": False,
         "price_bands": bands,
         "index_filters": indexes or [],
         "universe": UNIVERSE_LABEL,
         "universe_size": len(universe),
         "capital": capital,
-        "slice_capital": round(slice_cap, 2),
+        "slice_capital": round(capital / max(len(plans), 1), 2),
+        "recommended_n": recommended_n,
+        "leftover": leftover,
         "scanned": scanned,
         "market_news": market_news,
         "picks": plans,
-        "orders": orders,
+        "orders": [],
         "rule_voters": [name for name, _ in RULE_COMBO_VOTERS],
         "note": note,
     }

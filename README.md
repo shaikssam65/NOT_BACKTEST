@@ -8,7 +8,7 @@ Streamlit app for NSE cash equities (Zerodha Kite + Finnhub).
 1. **Auto-sell ≥30%** — sell Kite holdings only if unrealized profit ≥ 30%  
 2. **Manual sell** — pick any holding + qty and sell  
 3. **Manual buy** — enter symbol, size by qty or ₹, buy at Kite LTP (or your price)  
-4. **Research** — pick indexes + price ranges → **Suggest only** or **Place buy orders** (you choose how many stocks: 1–50)
+4. **Research** — suggest names, **you select** which to buy. Qty = capital ÷ selected count ÷ price. Paper mode does **not** send Kite orders.
 
 Live app entry: `app.py` (Streamlit Cloud).
 
@@ -123,8 +123,10 @@ For each shortlisted name:
 
 | Mode | Result |
 | --- | --- |
-| **Suggest only** | Show symbols, price, planned qty, stop (−8%), target (+30%) — **no order** |
-| **Place buy orders** | Same plan, then place buys (paper or live) |
+| **Suggest** | Show names + qty from your capital — **no Kite order** |
+| **Select + Place** | You tick which names; qty is recalculated from capital; then paper or live buy |
+
+**Paper vs live:** `PAPER_MODE=true` (default) only records fills in this app. Use the sidebar toggle **Send real orders to Zerodha** for live Kite CNC orders.
 
 **One-line summary:**  
 *Indexes + price filter → 6 chart rules vote → Kite live price (+ optional Finnhub news) ranks the winners → suggest or buy.*

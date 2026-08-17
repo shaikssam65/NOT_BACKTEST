@@ -5,10 +5,14 @@ from __future__ import annotations
 from datetime import date
 
 from trading_bot.simple_bot import (
+    affordable_pick_count,
     manual_buy,
     manual_sell_holdings,
+    place_selected_buys,
+    plan_buys_from_capital,
     price_in_selected_bands,
     research_and_buy,
+    shares_for_capital,
 )
 from tests.conftest import FakeProvider, trending_ohlcv
 
@@ -52,6 +56,26 @@ def test_price_bands():
     assert price_in_selected_bands(120.0, ["100-200", "500-1000"]) is True
     assert price_in_selected_bands(2500.0, ["1000-5000"]) is True
     assert price_in_selected_bands(99.0, None) is True
+
+
+def test_qty_from_capital_not_random():
+    assert shares_for_capital(100.0, 10_000.0) == 100
+    assert shares_for_capital(350.0, 1_000.0) == 2
+    assert shares_for_capital(2000.0, 1_000.0) == 0
+    picks = [
+        {"symbol": "AAA", "price": 100.0},
+        {"symbol": "BBB", "price": 200.0},
+        {"symbol": "CCC", "price": 5000.0},
+    ]
+    assert affordable_pick_count(picks, 10_000.0, 3) == 2
+    plans = plan_buys_from_capital(picks[:2], 10_000.0)
+    assert plans[0]["qty"] == 50
+    assert plans[1]["qty"] == 25
+
+
+def test_place_selected_empty(db, settings):
+    result = place_selected_buys(db, settings, [], [], capital=10_000.0)
+    assert result["ok"] is False
 
 
 def test_research_and_buy_runs(db, settings):
