@@ -187,3 +187,55 @@ def fetch_ltp(symbols: list[str], settings: Settings | None = None) -> dict[str,
         if price is not None:
             out[symbol] = float(price)
     return out
+
+
+def fetch_outbound_ip() -> dict[str, Any]:
+    """
+    Public IP this app uses for outbound HTTPS (what Zerodha Kite sees).
+    Streamlit Community Cloud IPs are shared and can change.
+    """
+    import httpx
+
+    urls = (
+        "https://api.ipify.org",
+        "https://ifconfig.me/ip",
+        "https://icanhazip.com",
+    )
+    last_err = ""
+    with httpx.Client(timeout=8.0, follow_redirects=True) as client:
+        for url in urls:
+            try:
+                r = client.get(url)
+                if r.status_code != 200:
+                    last_err = f"{url} status {r.status_code}"
+                    continue
+                ip = r.text.strip().split()[0]
+                if ip and all(c.isdigit() or c == "." for c in ip):
+                    return {"ok": True, "ip": ip, "source": url}
+                last_err = f"bad body from {url}: {r.text[:40]!r}"
+            except Exception as exc:
+                last_err = str(exc)
+    return {"ok": False, "ip": None, "error": last_err or "lookup_failed"}
+
+
+# Shared Streamlit Community Cloud egress IPs (community-reported; may change).
+STREAMLIT_CLOUD_EGRESS_IPS: tuple[str, ...] = (
+    "35.230.127.150",
+    "35.203.151.101",
+    "34.19.100.134",
+    "34.83.176.217",
+    "35.230.58.211",
+    "35.203.187.165",
+    "35.185.209.55",
+    "34.127.88.74",
+    "34.127.0.121",
+    "35.230.78.192",
+    "35.247.110.67",
+    "35.197.92.111",
+    "34.168.247.159",
+    "35.230.56.30",
+    "34.127.33.101",
+    "35.227.190.87",
+    "35.199.156.97",
+    "34.82.135.155",
+)

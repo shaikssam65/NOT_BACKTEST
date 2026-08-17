@@ -13,8 +13,10 @@ from dotenv import load_dotenv
 from trading_bot.config import ROOT, load_settings
 from trading_bot.execution import list_open_positions
 from trading_bot.kite_auth import (
+    STREAMLIT_CLOUD_EGRESS_IPS,
     clear_session,
     exchange_request_token,
+    fetch_outbound_ip,
     kite_redirect_url,
     login_url,
     profile_status,
@@ -143,6 +145,30 @@ def _setup_sidebar(settings) -> None:
                     st.success("Saved — on Cloud put keys in Streamlit Secrets instead.")
                 else:
                     st.info("Nothing to save.")
+
+        st.markdown("---")
+        st.markdown("### Kite API IP whitelist")
+        st.caption(
+            "Zerodha requires allowed IPs on the Kite Connect app. "
+            "Add the IP below in [developers.kite.trade](https://developers.kite.trade) → your app → **Redirect URL / Postback / IP**."
+        )
+        if st.button("Detect this app’s outbound IP", use_container_width=True):
+            info = fetch_outbound_ip()
+            st.session_state["outbound_ip_info"] = info
+        ip_info = st.session_state.get("outbound_ip_info")
+        if ip_info:
+            if ip_info.get("ok"):
+                st.code(ip_info["ip"], language=None)
+                st.success("Copy this IP into Kite → Allowed IPs, then save & wait a few minutes.")
+            else:
+                st.error(f"Could not detect IP: {ip_info.get('error')}")
+        with st.expander("Streamlit Cloud shared IPs (if Cloud keeps changing)"):
+            st.caption(
+                "Community Cloud does **not** guarantee a fixed IP. "
+                "For reliable live orders, run the bot on your PC (local IP) or a VPS with a static IP. "
+                "Optional: add these shared egress IPs too (they can change):"
+            )
+            st.code("\n".join(STREAMLIT_CLOUD_EGRESS_IPS), language=None)
 
         st.markdown("---")
         st.caption("Secrets: Kite + Finnhub. No OpenAI required.")

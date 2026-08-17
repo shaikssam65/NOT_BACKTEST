@@ -144,6 +144,21 @@ For each shortlisted name:
 
 Get a free Finnhub key: https://finnhub.io/
 
+## Kite “No IPs configured” / Allowed IPs
+
+Zerodha blocks API orders until you whitelist the **outbound IP** of the machine that calls Kite.
+
+1. Open the app → **sidebar** → **Detect this app’s outbound IP**  
+2. Copy the IP shown  
+3. Go to [developers.kite.trade](https://developers.kite.trade) → your app → add that IP under **Allowed IPs** → Save  
+4. Wait a few minutes, reconnect Kite, try the order again  
+
+**Notes**
+
+- **Local run** (`python -m trading_bot dashboard`): use your home/office public IP (same Detect button).  
+- **Streamlit Community Cloud**: IP is shared and **can change**. Prefer local PC or a cheap VPS with a **static IP** for live trading.  
+- Support article: https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/static-ip
+
 ## Run
 
 ```bash
