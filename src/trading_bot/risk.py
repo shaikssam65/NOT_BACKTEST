@@ -156,7 +156,8 @@ def validate_order(
             return decision
 
         stop_pct = (intent.entry_price - intent.stop_loss_price) / intent.entry_price * 100.0
-        if stop_pct < risk.min_stop_loss_pct or stop_pct > risk.max_stop_loss_pct:
+        # Tiny epsilon so exact max (e.g. 8.0) is not rejected by float noise.
+        if stop_pct + 1e-6 < risk.min_stop_loss_pct or stop_pct - 1e-6 > risk.max_stop_loss_pct:
             decision = RiskDecision(
                 False,
                 "stop_loss_pct_out_of_bounds",

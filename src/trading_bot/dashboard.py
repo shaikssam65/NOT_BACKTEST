@@ -570,14 +570,26 @@ def main() -> None:
 
     selected_buy_report = st.session_state.get("selected_buy_report")
     if selected_buy_report:
-        st.info(selected_buy_report.get("note") or "")
+        if selected_buy_report.get("ok"):
+            st.success(selected_buy_report.get("note") or "")
+        else:
+            st.error(selected_buy_report.get("note") or "Order failed.")
         if selected_buy_report.get("orders"):
             st.markdown("**Order result**")
-            st.dataframe(
-                pd.DataFrame(selected_buy_report["orders"]),
-                hide_index=True,
-                use_container_width=True,
-            )
+            rows = []
+            for o in selected_buy_report["orders"]:
+                rows.append(
+                    {
+                        "symbol": o.get("symbol"),
+                        "ok": o.get("ok"),
+                        "qty": o.get("qty"),
+                        "price": o.get("price"),
+                        "reason": o.get("reason") or ("sent" if o.get("ok") else ""),
+                        "broker_order_id": o.get("broker_order_id"),
+                        "mode": o.get("mode"),
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
     st.markdown("---")
     st.subheader("Bot book (paper/live positions from this app)")

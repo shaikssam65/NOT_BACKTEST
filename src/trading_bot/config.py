@@ -67,7 +67,7 @@ class RiskConfig:
     max_concurrent_positions: int = 4
     allow_averaging_down: bool = False
     min_stop_loss_pct: float = 0.5
-    max_stop_loss_pct: float = 8.0
+    max_stop_loss_pct: float = 10.0
 
 
 @dataclass(frozen=True)

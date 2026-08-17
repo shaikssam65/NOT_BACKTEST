@@ -25,7 +25,7 @@ MIN_RANK = 1
 MAX_RANK = 800
 DEFAULT_PICKS = 3
 PROFIT_SELL_PCT = 30.0
-STOP_PCT = 8.0
+STOP_PCT = 7.5
 TARGET_PCT = 30.0
 
 # UI price bands (₹). User can multi-select any subset.
@@ -123,6 +123,17 @@ def place_selected_buys(
             "orders": [],
             "note": "Select at least one suggested stock to buy.",
         }
+    if not settings.paper_mode and not settings.kite_ready:
+        return {
+            "ok": False,
+            "mode": mode,
+            "orders": [],
+            "note": (
+                "LIVE mode needs Kite connected (sidebar → Connect Kite). "
+                "Missing API key or access token — no order was sent."
+            ),
+        }
+
     plans = plan_buys_from_capital(chosen, float(capital))
     orders: list[dict[str, Any]] = []
     log(
@@ -134,21 +145,20 @@ def place_selected_buys(
 
     for plan in plans:
         qty = int(plan["qty"])
+        price = float(plan["price"])
         if qty <= 0:
-            orders.append(
-                {
-                    **plan,
-                    "ok": False,
-                    "reason": "qty_zero — price higher than your capital slice",
-                }
+            reason = (
+                f"qty_zero — need ≥ ₹{price:,.0f} for 1 share of {plan['symbol']}, "
+                f"but capital slice is ₹{plan['slice_capital']:,.0f}"
             )
-            log(f"  SKIP {plan['symbol']}: cannot afford 1 share in this slice")
+            orders.append({**plan, "ok": False, "reason": reason})
+            log(f"  SKIP {plan['symbol']}: {reason}")
             continue
         result = place_buy(
             conn,
             settings,
             symbol=plan["symbol"],
-            entry_price=float(plan["price"]),
+            entry_price=price,
             stop_loss=float(plan["stop"]),
             target=float(plan["target"]),
             strategy="simple_bot",
@@ -158,19 +168,36 @@ def place_selected_buys(
         )
         orders.append({**plan, **result})
         if result.get("ok"):
-            log(f"  BUY {plan['symbol']} × {result.get('qty')} @ {plan['price']}")
+            log(f"  BUY {plan['symbol']} × {result.get('qty')} @ {price}")
         else:
             log(f"  REJECTED {plan['symbol']}: {result.get('reason')}")
 
     ok_n = sum(1 for o in orders if o.get("ok"))
+    fails = [o for o in orders if not o.get("ok")]
+    fail_txt = "; ".join(
+        f"{o.get('symbol')}: {o.get('reason') or 'unknown'}" for o in fails[:5]
+    )
     if settings.paper_mode:
         note = (
-            f"PAPER simulation only — {ok_n} fill(s) recorded in this app, "
-            "NOT on your Zerodha account. Turn PAPER_MODE off (sidebar) for live orders."
+            f"PAPER simulation — {ok_n} fill(s) in this app only (not Zerodha)."
+            + (f" Failed: {fail_txt}" if fail_txt else "")
+        )
+    elif ok_n:
+        note = f"LIVE — sent {ok_n} buy order(s) to Kite." + (
+            f" Failed: {fail_txt}" if fail_txt else ""
         )
     else:
-        note = f"LIVE — sent {ok_n} buy order(s) to Kite."
-    return {"ok": True, "mode": mode, "orders": orders, "picks": plans, "note": note}
+        note = (
+            f"LIVE — sent 0 buy order(s). Nothing reached Kite. Reason(s): {fail_txt or 'unknown'}"
+        )
+    return {
+        "ok": ok_n > 0,
+        "mode": mode,
+        "orders": orders,
+        "picks": plans,
+        "note": note,
+        "fail_reasons": fail_txt,
+    }
 
 
 def price_in_selected_bands(price: float, band_labels: list[str] | None) -> bool:
