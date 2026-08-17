@@ -36,15 +36,18 @@ PRICE_BANDS: list[tuple[str, float, float]] = [
     ("200-500", 200.0, 500.0),
     ("500-1000", 500.0, 1000.0),
     ("1000-5000", 1000.0, 5000.0),
+    ("5000-10000", 5000.0, 10000.0),
+    ("10000-25000", 10000.0, 25000.0),
+    ("25000-50000", 25000.0, 50000.0),
 ]
-DEFAULT_PRICE_BANDS = ["50-100", "100-200", "200-500", "500-1000"]
+DEFAULT_PRICE_BANDS = ["50-100", "100-200", "200-500", "500-1000", "1000-5000"]
 
 
 def _bands_max_hi(band_labels: list[str]) -> float:
     """Highest upper bound among selected price bands."""
     selected = {str(x) for x in band_labels}
     his = [hi for label, _lo, hi in PRICE_BANDS if label in selected]
-    return max(his) if his else 5000.0
+    return max(his) if his else 50000.0
 
 
 def _noop(_: str) -> None:
@@ -175,11 +178,12 @@ def price_in_selected_bands(price: float, band_labels: list[str] | None) -> bool
     if not band_labels:
         return True
     selected = {str(x) for x in band_labels}
+    last_label = PRICE_BANDS[-1][0]
     for label, lo, hi in PRICE_BANDS:
         if label not in selected:
             continue
-        # Inclusive lower, exclusive upper except last band includes hi.
-        if label == "1000-5000":
+        # Inclusive lower; exclusive upper except the top band includes hi.
+        if label == last_label:
             if lo <= price <= hi:
                 return True
         elif lo <= price < hi:

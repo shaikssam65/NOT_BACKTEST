@@ -55,6 +55,10 @@ def test_price_bands():
     assert price_in_selected_bands(75.0, ["0-50"]) is False
     assert price_in_selected_bands(120.0, ["100-200", "500-1000"]) is True
     assert price_in_selected_bands(2500.0, ["1000-5000"]) is True
+    assert price_in_selected_bands(7500.0, ["5000-10000"]) is True
+    assert price_in_selected_bands(15000.0, ["10000-25000"]) is True
+    assert price_in_selected_bands(40000.0, ["25000-50000"]) is True
+    assert price_in_selected_bands(50000.0, ["25000-50000"]) is True
     assert price_in_selected_bands(99.0, None) is True
 
 
